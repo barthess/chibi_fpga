@@ -104,7 +104,7 @@ static fpgaword_t fill_blk_adr(size_t A, size_t B, size_t C, size_t opcode) {
   osalDbgCheck((A < FPGA_MTRX_BRAMS_CNT) &
                (B < FPGA_MTRX_BRAMS_CNT) &
                (C < FPGA_MTRX_BRAMS_CNT));
-  osalDbgCheck(opcode < MATH_OP_LAST);
+  osalDbgCheck(opcode <= MATH_OP_LAST);
 
   fpgaword_t ret;
   ret  = A << FPGA_MTRX_BRAMS_CNT_BITS * 0;
@@ -129,7 +129,7 @@ static fpgaword_t fill_blk_adr_3(size_t A, size_t B, size_t C, size_t opcode) {
 static fpgaword_t generate_safe_B(fpgaword_t A, fpgaword_t C) {
   fpgaword_t B = 0;
 
-  while ((B == A) && (B == C)) {
+  while ((B == A) || (B == C)) {
     B++;
   }
   return B;

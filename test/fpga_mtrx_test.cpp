@@ -16,9 +16,6 @@
  ******************************************************************************
  */
 
-static const size_t CTL_OP = 0;
-static const size_t CTL_SIZES = 1;
-
 #define RAND_POOL_LEN        (65536 / sizeof(double))
 #define RAND_POOL_ADR_MASK   (RAND_POOL_LEN - 1)
 
@@ -152,8 +149,7 @@ void matrix_multiply_fpga_like(size_t m, size_t p, size_t n,
 template <typename T>
 static void mtrx_compare_approx(const T *soft_dat, const T *fpga_dat, size_t m, size_t n) {
   T tmp1, tmp2;
-  m++;
-  n++;
+
   for(size_t i=0; i<m*n; i++) {
     tmp1 = soft_dat[i];
     tmp2 = fpga_dat[i];
@@ -172,8 +168,6 @@ template <typename T>
 static void mtrx_compare_exact(const T *soft_dat, const T *fpga_dat, size_t m, size_t n) {
   T tmp1, tmp2;
 
-  m++;
-  n++;
   for(size_t i=0; i<m*n; i++) {
     tmp1 = soft_dat[i];
     tmp2 = fpga_dat[i];
@@ -188,245 +182,8 @@ static void mtrx_compare_exact(const T *soft_dat, const T *fpga_dat, size_t m, s
 /**
  *
  */
-static void wait_polling(void) {
-
-  orange_led_on();
-
-  while (! FSMCDataFlushed())
-    ;
-
-  while(! FPGAMathRdy())
-    ;
-
-  orange_led_off();
-}
-
-/**
- *
- */
-fpgaword_t fill_sizes_3(size_t m, size_t p, size_t n) {
-
-  fpgaword_t ret;
-
-  osalDbgCheck((m <= FPGA_MTRX_MAX_INDEX) &
-               (p <= FPGA_MTRX_MAX_INDEX) &
-               (n <= FPGA_MTRX_MAX_INDEX));
-
-  ret   = m << FPGA_MTRX_INDEX_WIDTH * 0;
-  ret  |= p << FPGA_MTRX_INDEX_WIDTH * 1;
-  ret  |= n << FPGA_MTRX_INDEX_WIDTH * 2;
-
-  return ret;
-}
-
-/**
- *
- */
-fpgaword_t fill_sizes_2(size_t m, size_t n) {
-  fpgaword_t ret;
-
-  osalDbgCheck((m <= FPGA_MTRX_MAX_INDEX) &
-               (n <= FPGA_MTRX_MAX_INDEX));
-
-  ret   = m << FPGA_MTRX_INDEX_WIDTH * 0;
-  ret  |= n << FPGA_MTRX_INDEX_WIDTH * 2;
-
-  return ret;
-}
-
-/**
- *
- */
-fpgaword_t _fill_blk_adr(fpgaword_t A, fpgaword_t B, fpgaword_t C, fpgaword_t opcode) {
-  fpgaword_t ret;
-
-  osalDbgCheck((A != B) & (B != C) & (C != A));
-  osalDbgCheck((A < FPGA_MTRX_BRAMS_CNT) &
-               (B < FPGA_MTRX_BRAMS_CNT) &
-               (C < FPGA_MTRX_BRAMS_CNT));
-
-  ret  = A << FPGA_MTRX_BRAMS_CNT_BITS * 0;
-  ret |= B << FPGA_MTRX_BRAMS_CNT_BITS * 1;
-  ret |= C << FPGA_MTRX_BRAMS_CNT_BITS * 2;
-  ret |= opcode << FPGA_MTRX_BRAMS_CNT_BITS * 3;
-  ret |= 1 << FPGA_MTRX_DV_BIT;
-
-  return ret;
-}
-
-/**
- *
- */
-fpgaword_t fill_blk_adr3(fpgaword_t A, fpgaword_t B, fpgaword_t C, fpgaword_t opcode) {
-  return _fill_blk_adr(A, B, C, opcode);
-}
-
-/**
- * @brief Using same slice address forbidden
- */
-fpgaword_t _generate_B(fpgaword_t A, fpgaword_t C) {
-  fpgaword_t B = 0;
-  while ((B == A) or (B == C)) {
-    B++;
-  }
-  return B;
-}
-
-/**
- * @brief Using same slice address forbidden
- */
-fpgaword_t fill_blk_adr_2(fpgaword_t A, fpgaword_t C, fpgaword_t opcode) {
-
-  fpgaword_t B = _generate_B(A, C);
-  return _fill_blk_adr(A, B, C, opcode);
-}
-
-/**
- * @brief Using same slice address forbidden
- */
-fpgaword_t fill_blk_adr_1(fpgaword_t C, fpgaword_t opcode) {
-
-  fpgaword_t A = 0;
-  while (A == C) {
-    A++;
-  }
-
-  fpgaword_t B = _generate_B(A, C);
-  return _fill_blk_adr(A, B, C, opcode);
-}
-
-/**
- *
- */
 void fill_constant(const double val, fpgaword_t *ctl) {
   memcpy(&ctl[4], &val, sizeof(val));
-}
-
-/*****************************************************************************************
- * Hardware API
- *
- * функции принимают размеры, уже пригодные для прямой записи в регистры,
- * т.е. М(0х0) - это вырожденная матрица 1х1
- *****************************************************************************************/
-
-void fpga_mtrx_dot(size_t m, size_t p, size_t n,
-                   size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
-
-  ctl[CTL_SIZES] = fill_sizes_3(m, p, n);
-  ctl[CTL_OP]    = fill_blk_adr3(A, B, C, MATH_OP_DOT);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_add(size_t m,           size_t n,
-                   size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr3(A, B, C, MATH_OP_ADD);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_sub(size_t m,           size_t n,
-                   size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr3(A, B, C, MATH_OP_SUB);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_mul(size_t m,           size_t n,
-                   size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr3(A, B, C, MATH_OP_MUL);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_scale(size_t m,           size_t n,
-                     size_t A,           size_t C,
-                     fpgaword_t *ctl, double scale) {
-
-  fill_constant(scale, ctl);
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr_2(A, C, MATH_OP_SCALE);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_cpy(size_t m,           size_t n,
-                   size_t A,           size_t C,
-                   fpgaword_t *ctl) {
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr_2(A, C, MATH_OP_CPY);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_trn(size_t m,           size_t n,
-                   size_t A,           size_t C,
-                   fpgaword_t *ctl) {
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr_2(A, C, MATH_OP_TRN);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_set(size_t m,           size_t n,
-                                       size_t C,
-                   fpgaword_t *ctl, double set_val) {
-
-  fill_constant(set_val, ctl);
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, n);
-  ctl[CTL_OP]    = fill_blk_adr_1(C, MATH_OP_SET);
-
-  wait_polling();
-}
-
-/**
- *
- */
-void fpga_mtrx_dia(size_t m,
-                                       size_t C,
-                   fpgaword_t *ctl, double set_val) {
-
-  fill_constant(set_val, ctl);
-
-  ctl[CTL_SIZES] = fill_sizes_2(m, m);
-  ctl[CTL_OP]    = fill_blk_adr_1(C, MATH_OP_DIA);
-
-  wait_polling();
 }
 
 /*****************************************************************************************
@@ -437,9 +194,6 @@ void fpga_mtrx_dia(size_t m,
  */
 void soft_mtrx_dot(size_t m, size_t p, size_t n,
                    size_t A, size_t B, size_t C) {
-  m++;
-  p++;
-  n++;
   matrix_multiply_fpga_like(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
 }
 
@@ -448,8 +202,6 @@ void soft_mtrx_dot(size_t m, size_t p, size_t n,
  */
 void soft_mtrx_add(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
-  m++;
-  n++;
   matrix::matrix_soft_add(m, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
 }
 
@@ -458,8 +210,6 @@ void soft_mtrx_add(size_t m,           size_t n,
  */
 void soft_mtrx_sub(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
-  m++;
-  n++;
   matrix::matrix_soft_sub(m, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
 }
 
@@ -468,8 +218,6 @@ void soft_mtrx_sub(size_t m,           size_t n,
  */
 void soft_mtrx_mul(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
-  m++;
-  n++;
   for (size_t i=0; i<m*n; i++) {
     mtrx_pool[C][i] = mtrx_pool[A][i] * mtrx_pool[B][i];
   }
@@ -481,8 +229,6 @@ void soft_mtrx_mul(size_t m,           size_t n,
 void soft_mtrx_scale(size_t m,           size_t n,
                      size_t A,           size_t C,
                      double scale) {
-  m++;
-  n++;
   matrix::matrix_soft_scale(m*n, mtrx_pool[A], mtrx_pool[C], scale);
 }
 
@@ -491,8 +237,6 @@ void soft_mtrx_scale(size_t m,           size_t n,
  */
 void soft_mtrx_cpy(size_t m,           size_t n,
                    size_t A,           size_t C) {
-  m++;
-  n++;
   for (size_t i=0; i<m*n; i++) {
     mtrx_pool[C][i] = mtrx_pool[A][i];
   }
@@ -504,8 +248,6 @@ void soft_mtrx_cpy(size_t m,           size_t n,
 void soft_mtrx_set(size_t m,           size_t n,
                                        size_t C,
                    double set_val) {
-  m++;
-  n++;
   for (size_t i=0; i<m*n; i++) {
     mtrx_pool[C][i] = set_val;
   }
@@ -516,8 +258,6 @@ void soft_mtrx_set(size_t m,           size_t n,
  */
 void soft_mtrx_trn(size_t m,           size_t n,
                    size_t A,           size_t C) {
-  m++;
-  n++;
   matrix::matrix_soft_transpose(m, n, mtrx_pool[A], mtrx_pool[C]);
 }
 
@@ -528,8 +268,6 @@ void soft_mtrx_dia(size_t m,
                                        size_t C,
                    double set_val) {
   size_t i = 0;
-
-  m++;
 
   // Old EYE code
 //  for (i=0; i<m*m; i++) {
@@ -559,8 +297,6 @@ void soft_mtrx_dia(size_t m,
  * manual fill of arrays in FPGA
  *******************************************************************************/
 void manual_fill_pattern(double *ptr, double pattern, bool increment, size_t m, size_t n) {
-  m++;
-  n++;
   for (size_t i=0; i<m*n; i++) {
     ptr[i] = pattern;
     if (increment) {
@@ -570,8 +306,6 @@ void manual_fill_pattern(double *ptr, double pattern, bool increment, size_t m, 
 }
 
 void manual_fill_copy(double *ptr, const double *data, size_t m, size_t n) {
-  m++;
-  n++;
   for (size_t i=0; i<m*n; i++) {
     ptr[i] = data[i];
   }
@@ -579,8 +313,6 @@ void manual_fill_copy(double *ptr, const double *data, size_t m, size_t n) {
 
 void manual_fill_rand(double *ptr, size_t m, size_t n) {
 
-  m++;
-  n++;
   for (size_t i=0; i<m*n; i++) {
     ptr[i] = fast_rand_double();
   }
@@ -595,7 +327,7 @@ void manual_fill_rand(double *ptr, size_t m, size_t n) {
  */
 void fpga_dot_test(size_t m, size_t p, size_t n,
                    size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
+                   Mtrx *mtrxp) {
 
   manual_fill_rand(mtrx_pool[A], m, p);
   manual_fill_rand(mtrx_pool[B], p, n);
@@ -607,7 +339,7 @@ void fpga_dot_test(size_t m, size_t p, size_t n,
   soft_mtrx_dot(m, p, n, A, B, C);
 
   chTMStartMeasurementX(&tmu_hard);
-  fpga_mtrx_dot(m, p, n, A, B, C, ctl);
+  fpgaMtrxDot(mtrxp, m, p, n, A, B, C);
   chTMStopMeasurementX(&tmu_hard);
 
   //mtrx_compare_approx(mtrx_pool[C], fpga_pool[C], m, n);
@@ -619,14 +351,14 @@ void fpga_dot_test(size_t m, size_t p, size_t n,
  */
 void fpga_add_test(size_t m,           size_t n,
                    size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
+                   Mtrx *mtrxp) {
 
   manual_fill_rand(mtrx_pool[A], m, n);
   manual_fill_rand(mtrx_pool[B], m, n);
   manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
   manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
   soft_mtrx_add(m, n, A, B, C);
-  fpga_mtrx_add(m, n, A, B, C, ctl);
+  fpgaMtrxAdd(mtrxp, m, n, A, B, C);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 
   manual_fill_rand(mtrx_pool[A], m, n);
@@ -634,7 +366,7 @@ void fpga_add_test(size_t m,           size_t n,
   manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
   manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
   soft_mtrx_sub(m, n, A, B, C);
-  fpga_mtrx_sub(m, n, A, B, C, ctl);
+  fpgaMtrxSub(mtrxp, m, n, A, B, C);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 }
 
@@ -643,7 +375,7 @@ void fpga_add_test(size_t m,           size_t n,
  */
 void fpga_mul_test(size_t m,           size_t n,
                    size_t A, size_t B, size_t C,
-                   fpgaword_t *ctl) {
+                   Mtrx *mtrxp) {
 
   double scale = fast_rand_double();
 
@@ -652,7 +384,7 @@ void fpga_mul_test(size_t m,           size_t n,
   manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
   manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
   soft_mtrx_scale(m, n, A, C, scale);
-  fpga_mtrx_scale(m, n, A, C, ctl, scale);
+  fpgaMtrxScale(mtrxp, m, n, A, C, scale);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 
   manual_fill_rand(mtrx_pool[A], m, n);
@@ -660,7 +392,7 @@ void fpga_mul_test(size_t m,           size_t n,
   manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
   manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
   soft_mtrx_mul(m, n, A, B, C);
-  fpga_mtrx_mul(m, n, A, B, C, ctl);
+  fpgaMtrxMul(mtrxp, m, n, A, B, C);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 }
 
@@ -669,7 +401,7 @@ void fpga_mul_test(size_t m,           size_t n,
  */
 void fpga_mov_test(size_t m,           size_t n,
                    size_t A,           size_t C,
-                   fpgaword_t *ctl) {
+                   Mtrx *mtrxp) {
 
   double set_val;
 
@@ -680,7 +412,7 @@ void fpga_mov_test(size_t m,           size_t n,
   manual_fill_copy(fpga_pool[1], mtrx_pool[1], m, n);
   manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
   soft_mtrx_cpy(m, n, A, C);
-  fpga_mtrx_cpy(m, n, A, C, ctl);
+  fpgaMtrxCpy(mtrxp, m, n, A, C);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 
   manual_fill_rand(mtrx_pool[A], m, n);
@@ -688,7 +420,7 @@ void fpga_mov_test(size_t m,           size_t n,
   manual_fill_rand(mtrx_pool[C], m, n);
   manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
   soft_mtrx_trn(m, n, A, C);
-  fpga_mtrx_trn(m, n, A, C, ctl);
+  fpgaMtrxTrn(mtrxp, m, n, A, C);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 
   manual_fill_rand(mtrx_pool[A], m, n);
@@ -696,7 +428,7 @@ void fpga_mov_test(size_t m,           size_t n,
   manual_fill_rand(mtrx_pool[C], m, n);
   manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
   soft_mtrx_cpy(m, n, A, C);
-  fpga_mtrx_cpy(m, n, A, C, ctl);
+  fpgaMtrxCpy(mtrxp, m, n, A, C);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
 
   set_val = fast_rand_double();
@@ -705,9 +437,8 @@ void fpga_mov_test(size_t m,           size_t n,
   manual_fill_rand(mtrx_pool[C], m, n);
   manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
   soft_mtrx_set(m, n, C, set_val);
-  fpga_mtrx_set(m, n, C, ctl, set_val);
+  fpgaMtrxSet(mtrxp, m, n, C, set_val);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
-
 
   // Eye works correctly only with square matrices
   if (m == n) {
@@ -715,7 +446,7 @@ void fpga_mov_test(size_t m,           size_t n,
     manual_fill_rand(mtrx_pool[C], m, n);
     manual_fill_copy(fpga_pool[C], mtrx_pool[A], m, n);
     soft_mtrx_dia(m, C, set_val);
-    fpga_mtrx_dia(m, C, ctl, set_val);
+    fpgaMtrxDia(mtrxp, m, C, set_val);
     mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
   }
 }
@@ -723,73 +454,76 @@ void fpga_mov_test(size_t m,           size_t n,
 /**
  *
  */
-void test_dot_corner(fpgaword_t *ctl) {
+void test_dot_corner(Mtrx *mtrxp) {
   const size_t A = 0;
   const size_t B = 1;
   const size_t C = 2;
 
   size_t m, p, n;
 
-  m = 31;
-  p = 31;
-  n = 31;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 32;
+  p = 32;
+  n = 32;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 0;
-  p = 0;
-  n = 0;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 1;
+  p = 1;
+  n = 1;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 31;
-  p = 0;
-  n = 0;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 32;
+  p = 1;
+  n = 1;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 0;
-  p = 31;
-  n = 0;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 1;
+  p = 32;
+  n = 1;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 0;
-  p = 0;
-  n = 31;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 1;
+  p = 1;
+  n = 32;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 31;
-  p = 31;
-  n = 0;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 32;
+  p = 32;
+  n = 1;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 0;
-  p = 31;
-  n = 31;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 1;
+  p = 32;
+  n = 32;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
-  m = 31;
-  p = 0;
-  n = 31;
-  fpga_dot_test(m, p, n, A, B, C, ctl);
+  m = 32;
+  p = 1;
+  n = 32;
+  fpga_dot_test(m, p, n, A, B, C, mtrxp);
 
   const size_t MAX_BRUTE_SIZE = 4;
   m = MAX_BRUTE_SIZE;
   p = MAX_BRUTE_SIZE;
   n = MAX_BRUTE_SIZE;
 
-  while(m--) {
-    while(p--) {
-      while(n--) {
-        fpga_dot_test(m, p, n, A, B, C, ctl);
+  while(m > 1) {
+    while(p > 1) {
+      while(n > 1) {
+        fpga_dot_test(m, p, n, A, B, C, mtrxp);
+        n--;
       }
       n = MAX_BRUTE_SIZE;
+      p--;
     }
     p = MAX_BRUTE_SIZE;
+    m--;
   }
 }
 
 /**
  *
  */
-void test_add_corner(fpgaword_t *ctl) {
+void test_add_corner(Mtrx *mtrxp) {
   const size_t A = 0;
   const size_t B = 1;
   const size_t C = 2;
@@ -797,122 +531,122 @@ void test_add_corner(fpgaword_t *ctl) {
   size_t m;
   size_t n;
 
-  m = 0;
-  n = 0;
-  fpga_add_test(m, n, A, B, C, ctl);
-
-  m = 0;
-  n = 1;
-  fpga_add_test(m, n, A, B, C, ctl);
-
-  m = 1;
-  n = 0;
-  fpga_add_test(m, n, A, B, C, ctl);
-
   m = 1;
   n = 1;
-  fpga_add_test(m, n, A, B, C, ctl);
+  fpga_add_test(m, n, A, B, C, mtrxp);
 
-  m = 0;
-  n = 31;
-  fpga_add_test(m, n, A, B, C, ctl);
+  m = 1;
+  n = 2;
+  fpga_add_test(m, n, A, B, C, mtrxp);
 
-  m = 31;
-  n = 0;
-  fpga_add_test(m, n, A, B, C, ctl);
+  m = 2;
+  n = 1;
+  fpga_add_test(m, n, A, B, C, mtrxp);
 
-  m = 31;
-  n = 31;
-  fpga_add_test(m, n, A, B, C, ctl);
+  m = 2;
+  n = 2;
+  fpga_add_test(m, n, A, B, C, mtrxp);
+
+  m = 1;
+  n = 32;
+  fpga_add_test(m, n, A, B, C, mtrxp);
+
+  m = 32;
+  n = 1;
+  fpga_add_test(m, n, A, B, C, mtrxp);
+
+  m = 32;
+  n = 32;
+  fpga_add_test(m, n, A, B, C, mtrxp);
 }
 
 /**
  *
  */
-void test_mul_corner(fpgaword_t *ctl) {
+void test_mul_corner(Mtrx *mtrxp) {
   const size_t A = 0;
   const size_t B = 1;
   const size_t C = 2;
   size_t m, n;
 
-  m = 0;
-  n = 0;
-  fpga_mul_test(m, n, A, B, C, ctl);
-
-  m = 0;
-  n = 1;
-  fpga_mul_test(m, n, A, B, C, ctl);
-
-  m = 1;
-  n = 0;
-  fpga_mul_test(m, n, A, B, C, ctl);
-
   m = 1;
   n = 1;
-  fpga_mul_test(m, n, A, B, C, ctl);
+  fpga_mul_test(m, n, A, B, C, mtrxp);
 
-  m = 0;
-  n = 31;
-  fpga_mul_test(m, n, A, B, C, ctl);
+  m = 1;
+  n = 2;
+  fpga_mul_test(m, n, A, B, C, mtrxp);
 
-  m = 31;
-  n = 0;
-  fpga_mul_test(m, n, A, B, C, ctl);
+  m = 2;
+  n = 1;
+  fpga_mul_test(m, n, A, B, C, mtrxp);
 
-  m = 31;
-  n = 31;
-  fpga_mul_test(m, n, A, B, C, ctl);
+  m = 2;
+  n = 2;
+  fpga_mul_test(m, n, A, B, C, mtrxp);
+
+  m = 1;
+  n = 32;
+  fpga_mul_test(m, n, A, B, C, mtrxp);
+
+  m = 32;
+  n = 1;
+  fpga_mul_test(m, n, A, B, C, mtrxp);
+
+  m = 32;
+  n = 32;
+  fpga_mul_test(m, n, A, B, C, mtrxp);
 }
 
 /**
  *
  */
-void test_mov_corner(fpgaword_t *ctl) {
+void test_mov_corner(Mtrx *mtrxp) {
   const size_t A = 0;
   const size_t C = 2;
   size_t m, n;
 
-  m = 0;
-  n = 0;
-  fpga_mov_test(m, n, A, C, ctl);
-
-  m = 0;
+  m = 1;
   n = 1;
-  fpga_mov_test(m, n, A, C, ctl);
+  fpga_mov_test(m, n, A, C, mtrxp);
 
   m = 1;
-  n = 0;
-  fpga_mov_test(m, n, A, C, ctl);
-
-  m = 2;
   n = 2;
-  fpga_mov_test(m, n, A, C, ctl);
+  fpga_mov_test(m, n, A, C, mtrxp);
 
   m = 2;
   n = 1;
-  fpga_mov_test(m, n, A, C, ctl);
+  fpga_mov_test(m, n, A, C, mtrxp);
 
-  m = 0;
-  n = 31;
-  fpga_mov_test(m, n, A, C, ctl);
+  m = 3;
+  n = 3;
+  fpga_mov_test(m, n, A, C, mtrxp);
 
-  m = 31;
-  n = 0;
-  fpga_mov_test(m, n, A, C, ctl);
+  m = 3;
+  n = 2;
+  fpga_mov_test(m, n, A, C, mtrxp);
 
-  m = 31;
-  n = 31;
-  fpga_mov_test(m, n, A, C, ctl);
+  m = 1;
+  n = 32;
+  fpga_mov_test(m, n, A, C, mtrxp);
+
+  m = 32;
+  n = 1;
+  fpga_mov_test(m, n, A, C, mtrxp);
+
+  m = 32;
+  n = 32;
+  fpga_mov_test(m, n, A, C, mtrxp);
 }
 
 /**
  *
  */
-void test_fpga_corner(fpgaword_t *ctl) {
-  test_add_corner(ctl);
-  test_dot_corner(ctl);
-  test_mul_corner(ctl);
-  test_mov_corner(ctl);
+void test_fpga_corner(Mtrx *mtrxp) {
+  test_add_corner(mtrxp);
+  test_dot_corner(mtrxp);
+  test_mul_corner(mtrxp);
+  test_mov_corner(mtrxp);
 }
 
 /**
@@ -921,13 +655,13 @@ void test_fpga_corner(fpgaword_t *ctl) {
 void rand_generate_mpn(fpgaword_t *m, fpgaword_t *p, fpgaword_t *n) {
   uint32_t tmp = rand();
 
-  *m = tmp & FPGA_MTRX_MAX_INDEX;
+  *m = (tmp & FPGA_MTRX_MAX_INDEX) + 1;
   tmp >>= FPGA_MTRX_INDEX_WIDTH;
 
-  *p = tmp & FPGA_MTRX_MAX_INDEX;
+  *p = (tmp & FPGA_MTRX_MAX_INDEX) + 1;
   tmp >>= FPGA_MTRX_INDEX_WIDTH;
 
-  *n = tmp & FPGA_MTRX_MAX_INDEX;
+  *n = (tmp & FPGA_MTRX_MAX_INDEX) + 1;
   tmp >>= FPGA_MTRX_INDEX_WIDTH;
 }
 
@@ -954,7 +688,7 @@ void rand_generate_ABC(fpgaword_t *A, fpgaword_t *B, fpgaword_t *C) {
 /**
  *
  */
-void test_fpga_rand(fpgaword_t *ctl, size_t turns) {
+void test_fpga_rand(Mtrx *mtrxp, size_t turns) {
   fpgaword_t m, p, n, A, B, C;
 
   while(turns--) {
@@ -964,16 +698,16 @@ void test_fpga_rand(fpgaword_t *ctl, size_t turns) {
     uint32_t op = rand();
     switch (op & 3){
     case 0:
-      fpga_dot_test(m, p, n, A, B, C, ctl);
+      fpga_dot_test(m, p, n, A, B, C, mtrxp);
       break;
     case 1:
-      fpga_add_test(m,    n, A, B, C, ctl);
+      fpga_add_test(m,    n, A, B, C, mtrxp);
       break;
     case 2:
-      fpga_mul_test(m,    n, A, B, C, ctl);
+      fpga_mul_test(m,    n, A, B, C, mtrxp);
       break;
     case 3:
-      fpga_mov_test(m,    n, A,    C, ctl);
+      fpga_mov_test(m,    n, A,    C, mtrxp);
       break;
     default:
       osalSysHalt("");
@@ -1004,46 +738,46 @@ void compare_exact_all(fpgaword_t m, fpgaword_t n) {
 /**
  *
  */
-void multispep_add(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_add(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_add(m, n, A, B, C);
-    fpga_mtrx_add(m, n, A, B, C, ctl);
+    fpgaMtrxAdd(mtrxp, m, n, A, B, C);
   }
 }
 
 /**
  *
  */
-void multispep_sub(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_sub(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_sub(m, n, A, B, C);
-    fpga_mtrx_sub(m, n, A, B, C, ctl);
+    fpgaMtrxSub(mtrxp, m, n, A, B, C);
   }
 }
 
 /**
  *
  */
-void multispep_mul(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_mul(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_mul(m, n, A, B, C);
-    fpga_mtrx_mul(m, n, A, B, C, ctl);
+    fpgaMtrxMul(mtrxp, m, n, A, B, C);
   }
 }
 
 /**
  *
  */
-void multispep_scale(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_scale(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   double scale = rand_double();
@@ -1051,14 +785,14 @@ void multispep_scale(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_scale(m, n, A, C, scale);
-    fpga_mtrx_scale(m, n, A, C, ctl, scale);
+    fpgaMtrxScale(mtrxp, m, n, A, C, scale);
   }
 }
 
 /**
  *
  */
-void multispep_eye(fpgaword_t m, fpgaword_t *ctl, size_t steps) {
+void multispep_eye(fpgaword_t m, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   double scale = rand_double();
@@ -1066,14 +800,14 @@ void multispep_eye(fpgaword_t m, fpgaword_t *ctl, size_t steps) {
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_dia(m, C, scale);
-    fpga_mtrx_dia(m, C, ctl, scale);
+    fpgaMtrxDia(mtrxp, m, C, scale);
   }
 }
 
 /**
  *
  */
-void multispep_set(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_set(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   double set_val = rand_double();
@@ -1081,101 +815,101 @@ void multispep_set(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_set(m, n, C, set_val);
-    fpga_mtrx_set(m, n, C, ctl, set_val);
+    fpgaMtrxSet(mtrxp, m, n, C, set_val);
   }
 }
 
 /**
  *
  */
-void multispep_cpy(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_cpy(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_cpy(m, n, A, C);
-    fpga_mtrx_cpy(m, n, A, C, ctl);
+    fpgaMtrxCpy(mtrxp, m, n, A, C);
   }
 }
 
 /**
  *
  */
-void multispep_trn(fpgaword_t m, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_trn(fpgaword_t m, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_trn(m, n, A, C);
-    fpga_mtrx_trn(m, n, A, C, ctl);
+    fpgaMtrxTrn(mtrxp, m, n, A, C);
   }
 }
 
 /**
  *
  */
-void multispep_dot(fpgaword_t m, fpgaword_t p, fpgaword_t n, fpgaword_t *ctl, size_t steps) {
+void multispep_dot(fpgaword_t m, fpgaword_t p, fpgaword_t n, Mtrx *mtrxp, size_t steps) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
     soft_mtrx_dot(m, p, n, A, B, C);
-    fpga_mtrx_dot(m, p, n, A, B, C, ctl);
+    fpgaMtrxDot(mtrxp, m, p, n, A, B, C);
   }
 }
 
 /**
  *
  */
-void _test_fpga_memory_isolation_math(fpgaword_t m, fpgaword_t p, fpgaword_t n, fpgaword_t *ctl) {
+void _test_fpga_memory_isolation_math(fpgaword_t m, fpgaword_t p, fpgaword_t n, Mtrx *mtrxp) {
 
   fill_rand_all(m, n);
-  multispep_add(m, n, ctl, 17);
+  multispep_add(m, n, mtrxp, 17);
   compare_exact_all(m, n);
 
-  multispep_sub(m, n, ctl, 17);
+  multispep_sub(m, n, mtrxp, 17);
   compare_exact_all(m, n);
 
-  multispep_eye(m, ctl, 3);
-  compare_exact_all(m, n);
-
-  fill_rand_all(m, n);
-  multispep_mul(m, n, ctl, 7);
-  compare_exact_all(m, n);
-
-  multispep_cpy(m, n, ctl, 3);
+  multispep_eye(m, mtrxp, 3);
   compare_exact_all(m, n);
 
   fill_rand_all(m, n);
-  multispep_trn(m, n, ctl, 3);
+  multispep_mul(m, n, mtrxp, 7);
+  compare_exact_all(m, n);
+
+  multispep_cpy(m, n, mtrxp, 3);
   compare_exact_all(m, n);
 
   fill_rand_all(m, n);
-  multispep_dot(m, p, n, ctl, 3);
-  compare_exact_all(m, n);
-
-  multispep_set(m, n, ctl, 3);
+  multispep_trn(m, n, mtrxp, 3);
   compare_exact_all(m, n);
 
   fill_rand_all(m, n);
-  multispep_scale(m, n, ctl, 3);
+  multispep_dot(m, p, n, mtrxp, 3);
+  compare_exact_all(m, n);
+
+  multispep_set(m, n, mtrxp, 3);
+  compare_exact_all(m, n);
+
+  fill_rand_all(m, n);
+  multispep_scale(m, n, mtrxp, 3);
   compare_exact_all(m, n);
 }
 
 /**
  *
  */
-void test_fpga_memory_isolation_math(fpgaword_t *ctl) {
+void test_fpga_memory_isolation_math(Mtrx *mtrxp) {
   fpgaword_t m, p, n;
-  m = 31;
-  p = 31;
-  n = 31;
+  m = 32;
+  p = 32;
+  n = 32;
 
-  _test_fpga_memory_isolation_math(m, p, n, ctl);
+  _test_fpga_memory_isolation_math(m, p, n, mtrxp);
 
   for (size_t i=0; i<10; i++) {
     rand_generate_mpn(&m, &p, &n);
-    _test_fpga_memory_isolation_math(m, p, n, ctl);
+    _test_fpga_memory_isolation_math(m, p, n, mtrxp);
   }
 }
 
@@ -1184,8 +918,8 @@ void test_fpga_memory_isolation_math(fpgaword_t *ctl) {
  */
 void test_fpga_memory_isolation(void) {
   fpgaword_t m, n;
-  m = 31;
-  n = 31;
+  m = 32;
+  n = 32;
 
   // forward fill
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
@@ -1318,8 +1052,6 @@ void fpga_mtrx_math_test(Mtrx *mtrxp, size_t turns) {
     fpga_pool[i] = (double *)fpgaGetSlicePtr(mtrxp->fpgap, FPGA_WB_SLICE_MUL_BUF0 + i);
   }
 
-  fpgaword_t *ctl = fpgaGetSlicePtr(mtrxp->fpgap, FPGA_WB_SLICE_MUL_CTL);
-
   FPGAMathRst(true);
   osalThreadSleepMilliseconds(100);
   FPGAMathRst(false);
@@ -1330,10 +1062,10 @@ void fpga_mtrx_math_test(Mtrx *mtrxp, size_t turns) {
     srand(chSysGetRealtimeCounterX());
     init_rand_pool();
 
-    test_fpga_rand(ctl, 200);
-    test_fpga_corner(ctl);
+    test_fpga_rand(mtrxp, 200);
+    test_fpga_corner(mtrxp);
     test_fpga_memory_isolation();
-    test_fpga_memory_isolation_math(ctl);
+    test_fpga_memory_isolation_math(mtrxp);
 
     green_led_toggle();
   }
