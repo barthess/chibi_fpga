@@ -44,36 +44,32 @@ FpgaPwm FPGAPWMD1;
 /**
  *
  */
-void fpgapwmObjectInit(FpgaPwm *pwmp) {
+void fpgaPwmObjectInit(FpgaPwm *pwmp) {
   pwmp->state = FPGAPWM_STOP;
 }
 
 /**
  *
  */
-void fpgapwmStart(FpgaPwm *pwmp, const FPGADriver *fpgap) {
+void fpgaPwmStart(FpgaPwm *pwmp, const FPGADriver *fpgap) {
 
-  osalDbgCheck(fpgap->state == FPGA_READY);
+  osalDbgCheck(FPGA_READY == fpgap->state);
+  osalDbgCheck(FPGAPWM_UNINIT != pwmp->state);
 
-  pwmp->pwm = fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_PWM_ICU);
+  if (FPGAPWM_STOP == pwmp->state) {
+    pwmp->pwm = fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_PWM_ICU);
+    pwmp->icu = pwmp->pwm + FPGA_PWM_CHANNELS;
+    pwmp->speedometer = pwmp->icu + FPGA_ICU_CHANNELS;
+    pwmp->odometer = (uint32_t*)pwmp->speedometer + 2;
+  }
+
   pwmp->state = FPGAPWM_READY;
 }
 
 /**
  *
  */
-void fpgapwmStop(FpgaPwm *pwmp) {
+void fpgaPwmStop(FpgaPwm *pwmp) {
   pwmp->state = FPGAPWM_STOP;
   pwmp->pwm = NULL;
 }
-
-/**
- *
- */
-void fpgapwmSet(FpgaPwm *pwmp, fpgaword_t val, size_t N) {
-  osalDbgCheck(FPGAPWM_READY == pwmp->state);
-  //osalDbgCheck(N < FPGA_PWM_CHANNELS);
-
-  pwmp->pwm[N] = val;
-}
-

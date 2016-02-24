@@ -7,10 +7,10 @@
  * @brief   Driver state machine possible states.
  */
 typedef enum {
-  MTRXMUL_UNINIT = 0,             /**< Not initialized.                   */
-  MTRXMUL_STOP = 1,               /**< Stopped.                           */
-  MTRXMUL_READY = 2,              /**< Ready.                             */
-  MTRXMUL_ACTIVE = 3,             /**< Active.                            */
+  MTRXMUL_UNINIT  = 0,            /**< Not initialized.                   */
+  MTRXMUL_STOP    = 1,            /**< Stopped.                           */
+  MTRXMUL_READY   = 2,            /**< Ready.                             */
+  MTRXMUL_ACTIVE  = 3,            /**< Active.                            */
 } mtrxstate_t;
 
 /**

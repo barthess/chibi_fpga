@@ -208,6 +208,8 @@ void fpgaMtrxStart(Mtrx *mtrxp, const FPGADriver *fpgap) {
 
   osalDbgCheck(NULL != fpgap);
   osalDbgCheck(FPGA_READY == mtrxp->fpgap->state);
+  osalDbgCheck(MTRXMUL_UNINIT != mtrxp->state);
+
   mtrxp->fpgap = fpgap;
 
   for (size_t i=0; i<8; i++) {
