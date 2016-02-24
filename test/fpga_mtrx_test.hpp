@@ -3,7 +3,7 @@
 
 #include "fpga_mtrx.h"
 
-void fpga_mul_test(FPGADriver *fpgap, size_t turns);
+void fpga_mtrx_math_test(Mtrx *mtrxp, size_t turns);
 
 #endif /* FPGA_MUL_TEST_HPP_ */
 

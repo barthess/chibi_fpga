@@ -441,7 +441,6 @@ void soft_mtrx_dot(size_t m, size_t p, size_t n,
   p++;
   n++;
   matrix_multiply_fpga_like(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
-  //matrix::matrix_multiply(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
 }
 
 /**
@@ -1299,11 +1298,11 @@ void benchmark(size_t idx, size_t m, size_t n) {
  */
 volatile fpgaword_t tmp;
 volatile double distance;
-void fpga_mul_test(FPGADriver *fpgap, size_t turns) {
+void fpga_mtrx_math_test(Mtrx *mtrxp, size_t turns) {
   chTMObjectInit(&tmu_soft);
   chTMObjectInit(&tmu_hard);
 
-  osalDbgCheck(fpgap->state == FPGA_READY);
+  osalDbgCheck(mtrxp->state == MTRXMUL_READY);
 
   // memtest on brams
   for (size_t i=0; i<8; i++) {
@@ -1314,15 +1313,12 @@ void fpga_mul_test(FPGADriver *fpgap, size_t turns) {
     fpga_memtest(&FPGAD1, false, 2, FPGA_WB_SLICE_MUL_BUF0 + i, depth);
   }
 
-  // benchmarking
-  //benchmark(1, 16, 16);
-
   // now math test
   for (size_t i=0; i<8; i++) {
-    fpga_pool[i] = (double *)fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_MUL_BUF0 + i);
+    fpga_pool[i] = (double *)fpgaGetSlicePtr(mtrxp->fpgap, FPGA_WB_SLICE_MUL_BUF0 + i);
   }
 
-  fpgaword_t *ctl = fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_MUL_CTL);
+  fpgaword_t *ctl = fpgaGetSlicePtr(mtrxp->fpgap, FPGA_WB_SLICE_MUL_CTL);
 
   FPGAMathRst(true);
   osalThreadSleepMilliseconds(100);

@@ -207,10 +207,10 @@ void fpgaMtrxStart(Mtrx *mtrxp, const FPGADriver *fpgap) {
   }
 
   osalDbgCheck(NULL != fpgap);
-  osalDbgCheck(FPGA_READY == mtrxp->fpgap->state);
-  osalDbgCheck(MTRXMUL_UNINIT != mtrxp->state);
+  osalDbgCheck(FPGA_READY == fpgap->state);
 
   mtrxp->fpgap = fpgap;
+  osalDbgCheck(MTRXMUL_UNINIT != mtrxp->state);
 
   for (size_t i=0; i<8; i++) {
     mtrxp->pool[i] = (double *)fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_MUL_BUF0 + i);
