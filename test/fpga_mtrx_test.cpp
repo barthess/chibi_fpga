@@ -8,7 +8,7 @@
 #include "fpga_mtrx_test.hpp"
 #include "fpga_mem_test.hpp"
 
-#include "embmatrix2/matrix_soft_engine.hpp"
+#include "matrix_soft_engine.hpp"
 
 /*
  ******************************************************************************
@@ -43,9 +43,6 @@ static double mtrx_pool[FPGA_MTRX_BRAMS_CNT]
                        [(1 << FPGA_MTRX_INDEX_WIDTH) * (1 << FPGA_MTRX_INDEX_WIDTH)];
 
 __CCM__ static double rand_pool[RAND_POOL_LEN];
-
-static time_measurement_t tmu_soft;
-static time_measurement_t tmu_hard;
 
 /*
  ******************************************************************************
@@ -338,9 +335,7 @@ void fpga_dot_test(size_t m, size_t p, size_t n,
 
   soft_mtrx_dot(m, p, n, A, B, C);
 
-  chTMStartMeasurementX(&tmu_hard);
   fpgaMtrxDot(mtrxp, m, p, n, A, B, C);
-  chTMStopMeasurementX(&tmu_hard);
 
   //mtrx_compare_approx(mtrx_pool[C], fpga_pool[C], m, n);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
@@ -1030,32 +1025,36 @@ void benchmark(size_t idx, size_t m, size_t n) {
 /**
  *
  */
-volatile fpgaword_t tmp;
-volatile double distance;
-void fpga_mtrx_math_test(Mtrx *mtrxp, size_t turns) {
-  chTMObjectInit(&tmu_soft);
-  chTMObjectInit(&tmu_hard);
-
+void fpga_mtrx_mem_test(Mtrx *mtrxp, size_t turns) {
   osalDbgCheck(mtrxp->state == MTRXMUL_READY);
 
-  // memtest on brams
   for (size_t i=0; i<8; i++) {
     size_t depth = (1 << FPGA_MTRX_INDEX_WIDTH) * (1 << FPGA_MTRX_INDEX_WIDTH);
     depth *= sizeof(double);
     depth /= sizeof(fpgaword_t);
 
-    fpga_memtest(&FPGAD1, false, 2, FPGA_WB_SLICE_MUL_BUF0 + i, depth);
+    fpga_memtest(&FPGAD1, false, turns, FPGA_WB_SLICE_MUL_BUF0 + i, depth);
   }
+}
 
-  // now math test
+/**
+ *
+ */
+void fpga_mtrx_full_test(Mtrx *mtrxp, size_t turns) {
+
+  fpga_mtrx_mem_test(mtrxp, 3);
+
+  // init BRAM pool
   for (size_t i=0; i<8; i++) {
     fpga_pool[i] = (double *)fpgaGetSlicePtr(mtrxp->fpgap, FPGA_WB_SLICE_MUL_BUF0 + i);
   }
 
+  // reset FPGA
   FPGAMathRst(true);
-  osalThreadSleepMilliseconds(100);
+  osalThreadSleepMilliseconds(10);
   FPGAMathRst(false);
 
+  // math tests
   while(turns--) {
     osalThreadSleep(1);
 
