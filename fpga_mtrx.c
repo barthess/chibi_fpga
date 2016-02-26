@@ -81,7 +81,7 @@ static fpgaword_t fill_sizes_3(size_t m, size_t p, size_t n) {
  * @note    Sizes must be in widely used notation e.g. m=1, p=1 denotes
  *          singular matrix from 1 element.
  */
-fpgaword_t fill_sizes_2(size_t m, size_t n) {
+static fpgaword_t fill_sizes_2(size_t m, size_t n) {
   m -= 1;
   n -= 1;
 
@@ -138,7 +138,7 @@ static fpgaword_t generate_safe_B(fpgaword_t A, fpgaword_t C) {
 /**
  * @brief Using same slice address forbidden
  */
-fpgaword_t fill_blk_adr_2(fpgaword_t A, fpgaword_t C, fpgaword_t opcode) {
+static fpgaword_t fill_blk_adr_2(fpgaword_t A, fpgaword_t C, fpgaword_t opcode) {
 
   fpgaword_t B = generate_safe_B(A, C);
   return fill_blk_adr(A, B, C, opcode);
@@ -147,7 +147,7 @@ fpgaword_t fill_blk_adr_2(fpgaword_t A, fpgaword_t C, fpgaword_t opcode) {
 /**
  * @brief Using same slice address forbidden
  */
-fpgaword_t fill_blk_adr_1(fpgaword_t C, fpgaword_t opcode) {
+static fpgaword_t fill_blk_adr_1(fpgaword_t C, fpgaword_t opcode) {
 
   fpgaword_t A = 0;
   while (A == C) {
@@ -159,7 +159,7 @@ fpgaword_t fill_blk_adr_1(fpgaword_t C, fpgaword_t opcode) {
 }
 
 /**
- *
+ * @brief   Experimental code for calculation index from BRAM pointer
  */
 size_t get_idx(Mtrx *mtrxp, const double *slice) {
 
@@ -246,7 +246,7 @@ double * fpgaMtrxMalloc(Mtrx *mtrxp, size_t *slice_idx) {
     return NULL;
   }
 
-  osalDbgCheck((MTRXMUL_READY == mtrxp->state) && (MTRXMUL_ACTIVE == mtrxp->state));
+  osalDbgCheck((MTRXMUL_READY == mtrxp->state) || (MTRXMUL_ACTIVE == mtrxp->state));
   osalDbgCheck(mtrxp->empty < (1U << FPGA_MTRX_BRAMS_CNT)); // pool corrupted
 
   // find first empty slice
@@ -282,7 +282,7 @@ void fpgaMtrxFree(Mtrx *mtrxp, void *slice, size_t slice_idx) {
     return;
   }
 
-  osalDbgCheck((MTRXMUL_READY == mtrxp->state) && (MTRXMUL_ACTIVE == mtrxp->state));
+  osalDbgCheck((MTRXMUL_READY == mtrxp->state) || (MTRXMUL_ACTIVE == mtrxp->state));
 
   mtrxp->empty |= 1U << slice_idx;
 }
@@ -292,7 +292,7 @@ void fpgaMtrxFree(Mtrx *mtrxp, void *slice, size_t slice_idx) {
  */
 double * fpgaMtrxDataPtr(Mtrx *mtrxp, size_t slice_idx) {
 
-  osalDbgCheck((MTRXMUL_READY == mtrxp->state) && (MTRXMUL_ACTIVE == mtrxp->state));
+  osalDbgCheck((MTRXMUL_READY == mtrxp->state) || (MTRXMUL_ACTIVE == mtrxp->state));
   osalDbgCheck(slice_idx < FPGA_MTRX_BRAMS_CNT);
 
   return mtrxp->pool[slice_idx];
