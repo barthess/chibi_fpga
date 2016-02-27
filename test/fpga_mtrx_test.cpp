@@ -1042,7 +1042,7 @@ void fpga_mtrx_mem_test(Mtrx *mtrxp, size_t turns) {
  */
 void fpga_mtrx_full_test(Mtrx *mtrxp, size_t turns) {
 
-  fpga_mtrx_mem_test(mtrxp, 3);
+  fpga_mtrx_mem_test(mtrxp, 2);
 
   // init BRAM pool
   for (size_t i=0; i<8; i++) {
