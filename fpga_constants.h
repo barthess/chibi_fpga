@@ -10,3 +10,6 @@
 #define MATH_OP_SUB    7
 #define MATH_OP_DOT    8
 #define MATH_OP_LAST   MATH_OP_DOT
+#define CMD_BIT_B_TR    13
+#define CMD_BIT_RESVD   14
+#define CMD_BIT_DV      15

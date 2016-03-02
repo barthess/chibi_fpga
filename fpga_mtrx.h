@@ -69,7 +69,7 @@ extern "C" {
   double* fpgaMtrxMalloc(void);
   void fpgaMtrxFree(void *slice);
 
-  void fpgaMtrxDot(size_t m, size_t p, size_t n, const double *A, const double *B, double *C);
+  void fpgaMtrxDot(size_t m, size_t p, size_t n, const double *A, const double *B, double *C, bool b_transposed);
   void fpgaMtrxAdd(size_t m, size_t n, const double *A, const double *B, double *C);
   void fpgaMtrxSub(size_t m, size_t n, const double *A, const double *B, double *C);
   void fpgaMtrxMul(size_t m, size_t n, const double *A, const double *B, double *C);

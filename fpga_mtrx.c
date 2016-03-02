@@ -98,7 +98,7 @@ static fpgaword_t fill_sizes_2(size_t m, size_t n) {
 /**
  *
  */
-static fpgaword_t fill_blk_adr(size_t A, size_t B, size_t C, size_t opcode) {
+static fpgaword_t fill_blk_adr(size_t A, size_t B, size_t C, size_t opcode, bool b_transposed) {
 
   osalDbgCheck((A != B) & (B != C) & (C != A));
   osalDbgCheck((A < FPGA_MTRX_BRAMS_CNT) &
@@ -111,16 +111,19 @@ static fpgaword_t fill_blk_adr(size_t A, size_t B, size_t C, size_t opcode) {
   ret |= B << FPGA_MTRX_BRAMS_CNT_BITS * 1;
   ret |= C << FPGA_MTRX_BRAMS_CNT_BITS * 2;
   ret |= opcode << FPGA_MTRX_BRAMS_CNT_BITS * 3;
-  ret |= 1 << FPGA_MTRX_DV_BIT;
+  ret |= 1 << CMD_BIT_DV;
 
+  if (b_transposed && (MATH_OP_DOT == opcode)) {
+    ret |= 1 << CMD_BIT_B_TR;
+  }
   return ret;
 }
 
 /**
  *
  */
-static fpgaword_t fill_blk_adr_3(size_t A, size_t B, size_t C, size_t opcode) {
-  return fill_blk_adr(A, B, C, opcode);
+static fpgaword_t fill_blk_adr_3(size_t A, size_t B, size_t C, size_t opcode, bool b_transposed) {
+  return fill_blk_adr(A, B, C, opcode, b_transposed);
 }
 
 /**
@@ -141,7 +144,7 @@ static fpgaword_t generate_safe_B(fpgaword_t A, fpgaword_t C) {
 static fpgaword_t fill_blk_adr_2(fpgaword_t A, fpgaword_t C, fpgaword_t opcode) {
 
   fpgaword_t B = generate_safe_B(A, C);
-  return fill_blk_adr(A, B, C, opcode);
+  return fill_blk_adr(A, B, C, opcode, false);
 }
 
 /**
@@ -155,7 +158,7 @@ static fpgaword_t fill_blk_adr_1(fpgaword_t C, fpgaword_t opcode) {
   }
 
   fpgaword_t B = generate_safe_B(A, C);
-  return fill_blk_adr(A, B, C, opcode);
+  return fill_blk_adr(A, B, C, opcode, false);
 }
 
 /**
@@ -277,15 +280,15 @@ void fpgaMtrxFree(void *slice) {
 }
 
 /**
- *
+ * @brief   multiply matrix A(m x p) by  B(p x n), put result in C(m x n)
  */
 void fpgaMtrxDot(size_t m, size_t p, size_t n,
-                 const double *A, const double *B, double *C){
+                 const double *A, const double *B, double *C, bool b_transposed){
 
   osalDbgCheck(MTRX_READY == MTRXD.state);
 
   *MTRXD.sizes = fill_sizes_3(m, p, n);
-  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_DOT);
+  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_DOT, b_transposed);
   wait_polling();
 }
 
@@ -297,7 +300,7 @@ void fpgaMtrxAdd(size_t m, size_t n, const double *A, const double *B, double *C
   osalDbgCheck(MTRX_READY == MTRXD.state);
 
   *MTRXD.sizes = fill_sizes_2(m, n);
-  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_ADD);
+  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_ADD, false);
   wait_polling();
 }
 
@@ -309,7 +312,7 @@ void fpgaMtrxSub(size_t m, size_t n, const double *A, const double *B, double *C
   osalDbgCheck(MTRX_READY == MTRXD.state);
 
   *MTRXD.sizes = fill_sizes_2(m, n);
-  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_SUB);
+  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_SUB, false);
   wait_polling();
 }
 
@@ -321,7 +324,7 @@ void fpgaMtrxMul(size_t m, size_t n, const double *A, const double *B, double *C
   osalDbgCheck(MTRX_READY == MTRXD.state);
 
   *MTRXD.sizes = fill_sizes_2(m, n);
-  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_MUL);
+  *MTRXD.op = fill_blk_adr_3(get_idx(A), get_idx(B), get_idx(C), MATH_OP_MUL, false);
   wait_polling();
 }
 

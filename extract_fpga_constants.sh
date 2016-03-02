@@ -9,7 +9,7 @@ DST=$2
 echo "// WARNING! Automatically generated from $SRC" > $DST
 echo "// Do not modify it manually!" >> $DST
 
-grep "MATH_OP_" $SRC |\
+grep -E "MATH_OP_|CMD_BIT_" $SRC |\
 	sed 's/^.[ ]constant/#define/' |\
 	sed 's/:[ ]*natural[ ]*:=//' |\
 	sed 's/;.*$//' >> $DST

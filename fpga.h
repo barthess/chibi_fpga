@@ -17,8 +17,6 @@ typedef uint16_t        fpgaword_t;         /* fpga talks with stm32 using 16-bi
 #define FPGA_MTRX_BRAMS_CNT_BITS  3 /* number of bits for addressing BRAM slice*/
 #define FPGA_MTRX_BRAMS_CNT       (1 << FPGA_MTRX_BRAMS_CNT_BITS)
 
-#define FPGA_MTRX_DV_BIT          15 /* position of "data valid" bit in control word*/
-
 /* IDs of command slices for differ peripherals */
 #define FPGA_WB_SLICE_MEMTEST     0
 #define FPGA_WB_SLICE_LED         1

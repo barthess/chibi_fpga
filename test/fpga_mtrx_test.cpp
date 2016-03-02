@@ -141,6 +141,24 @@ void matrix_multiply_fpga_like(size_t m, size_t p, size_t n,
 }
 
 /**
+ * @brief   matrix multiply with B lazy transposed
+ */
+void matrix_multiply_fpga_like_TB(size_t m, size_t p, size_t n,
+                                  const double *A, const double *B, double *C) {
+  size_t i, j, k;
+  double tmp[p];
+
+  for(i=0; i<m; i++) {      //each row in A
+    for(j=0; j<n; j++) {    //each column in B
+      for(k=0; k<p; k++) {  //each element in row A & column B
+        tmp[k] = A[i*p + k] * B[j*p + k];
+      }
+      *C++ = pyramid_accumulate(tmp, p);
+    }
+  }
+}
+
+/**
  *
  */
 template <typename T>
@@ -190,8 +208,13 @@ void fill_constant(const double val, fpgaword_t *ctl) {
  *
  */
 void soft_mtrx_dot(size_t m, size_t p, size_t n,
-                   size_t A, size_t B, size_t C) {
-  matrix_multiply_fpga_like(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+                   size_t A, size_t B, size_t C, bool b_transposed) {
+  if (b_transposed) {
+    matrix_multiply_fpga_like_TB(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+  }
+  else {
+    matrix_multiply_fpga_like(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+  }
 }
 
 /**
@@ -332,9 +355,11 @@ void fpga_dot_test(size_t m, size_t p, size_t n,
   manual_fill_pattern(mtrx_pool[C], 666, false, m, n);
   manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
 
-  soft_mtrx_dot(m, p, n, A, B, C);
+  soft_mtrx_dot(m, p, n, A, B, C, false);
+  fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C], false);
 
-  fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
+  soft_mtrx_dot(m, p, n, A, B, C, true);
+  fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C], true);
 
   //mtrx_compare_approx(mtrx_pool[C], fpga_pool[C], m, n);
   mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
@@ -870,13 +895,13 @@ void multispep_trn(fpgaword_t m, fpgaword_t n, size_t steps) {
 /**
  *
  */
-void multispep_dot(fpgaword_t m, fpgaword_t p, fpgaword_t n, size_t steps) {
+void multispep_dot(fpgaword_t m, fpgaword_t p, fpgaword_t n, size_t steps, bool b_transposed) {
   fpgaword_t A, B, C;
 
   while(steps--) {
     rand_generate_ABC(&A, &B, &C);
-    soft_mtrx_dot(m, p, n, A, B, C);
-    fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
+    soft_mtrx_dot(m, p, n, A, B, C, b_transposed);
+    fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C], b_transposed);
   }
 }
 
@@ -907,7 +932,9 @@ void _test_fpga_memory_isolation_math(fpgaword_t m, fpgaword_t p, fpgaword_t n) 
   compare_exact_all(m, n);
 
   fill_rand_all(m, n);
-  multispep_dot(m, p, n, 3);
+  multispep_dot(m, p, n, 3, false);
+  compare_exact_all(m, n);
+  multispep_dot(m, p, n, 3, true);
   compare_exact_all(m, n);
 
   multispep_set(m, n, 3);
