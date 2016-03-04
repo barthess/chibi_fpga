@@ -39,7 +39,7 @@
 
 static double *fpga_pool[8]; // will be initialized later
 
-static double mtrx_pool[FPGA_MTRX_BRAMS_CNT]
+static double ram_pool[FPGA_MTRX_BRAMS_CNT]
                        [(1 << FPGA_MTRX_INDEX_WIDTH) * (1 << FPGA_MTRX_INDEX_WIDTH)];
 
 __CCM__ static double rand_pool[RAND_POOL_LEN];
@@ -208,10 +208,10 @@ static void mtrx_compare_exact(const T *soft_dat, const T *fpga_dat, size_t m, s
 void soft_mtrx_dot(size_t m, size_t p, size_t n,
                    size_t A, size_t B, size_t C, bool b_transposed) {
   if (b_transposed) {
-    matrix_multiply_fpga_like_TB(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+    matrix_multiply_fpga_like_TB(m, p, n, ram_pool[A], ram_pool[B], ram_pool[C]);
   }
   else {
-    matrix_multiply_fpga_like(m, p, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+    matrix_multiply_fpga_like(m, p, n, ram_pool[A], ram_pool[B], ram_pool[C]);
   }
 }
 
@@ -220,7 +220,7 @@ void soft_mtrx_dot(size_t m, size_t p, size_t n,
  */
 void soft_mtrx_add(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
-  matrix::matrix_soft_add(m, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+  matrix::matrix_soft_add(m, n, ram_pool[A], ram_pool[B], ram_pool[C]);
 }
 
 /**
@@ -228,7 +228,7 @@ void soft_mtrx_add(size_t m,           size_t n,
  */
 void soft_mtrx_sub(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
-  matrix::matrix_soft_sub(m, n, mtrx_pool[A], mtrx_pool[B], mtrx_pool[C]);
+  matrix::matrix_soft_sub(m, n, ram_pool[A], ram_pool[B], ram_pool[C]);
 }
 
 /**
@@ -237,7 +237,7 @@ void soft_mtrx_sub(size_t m,           size_t n,
 void soft_mtrx_mul(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
   for (size_t i=0; i<m*n; i++) {
-    mtrx_pool[C][i] = mtrx_pool[A][i] * mtrx_pool[B][i];
+    ram_pool[C][i] = ram_pool[A][i] * ram_pool[B][i];
   }
 }
 
@@ -247,7 +247,7 @@ void soft_mtrx_mul(size_t m,           size_t n,
 void soft_mtrx_scale(size_t m,           size_t n,
                      size_t A,           size_t C,
                      double scale) {
-  matrix::matrix_soft_scale(m*n, mtrx_pool[A], mtrx_pool[C], scale);
+  matrix::matrix_soft_scale(m*n, ram_pool[A], ram_pool[C], scale);
 }
 
 /**
@@ -256,7 +256,7 @@ void soft_mtrx_scale(size_t m,           size_t n,
 void soft_mtrx_cpy(size_t m,           size_t n,
                    size_t A,           size_t C) {
   for (size_t i=0; i<m*n; i++) {
-    mtrx_pool[C][i] = mtrx_pool[A][i];
+    ram_pool[C][i] = ram_pool[A][i];
   }
 }
 
@@ -267,7 +267,7 @@ void soft_mtrx_set(size_t m,           size_t n,
                                        size_t C,
                    double set_val) {
   for (size_t i=0; i<m*n; i++) {
-    mtrx_pool[C][i] = set_val;
+    ram_pool[C][i] = set_val;
   }
 }
 
@@ -276,7 +276,7 @@ void soft_mtrx_set(size_t m,           size_t n,
  */
 void soft_mtrx_trn(size_t m,           size_t n,
                    size_t A,           size_t C) {
-  matrix::matrix_soft_transpose(m, n, mtrx_pool[A], mtrx_pool[C]);
+  matrix::matrix_soft_transpose(m, n, ram_pool[A], ram_pool[C]);
 }
 
 /**
@@ -300,12 +300,12 @@ void soft_mtrx_dia(size_t m,
 
   // New diagonal code
   for (i=0; i<m*m; i++) {
-    mtrx_pool[C][i] = 0;
+    ram_pool[C][i] = 0;
   }
 
   i = 0;
   while (i < m*m) {
-    mtrx_pool[C][i] = set_val;
+    ram_pool[C][i] = set_val;
     i += m+1;
   }
 }
@@ -358,12 +358,12 @@ void manual_fill_rand_sparse(double *dst, size_t m, size_t n, size_t sparseness)
 void fpga_dot_test(size_t m, size_t p, size_t n,
                    size_t A, size_t B, size_t C) {
 
-  manual_fill_rand(mtrx_pool[A], m, p);
-  manual_fill_rand(mtrx_pool[B], p, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, p);
-  manual_fill_copy(fpga_pool[B], mtrx_pool[B], p, n);
-  manual_fill_pattern(mtrx_pool[C], 666, false, m, n);
-  manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
+  manual_fill_rand(ram_pool[A], m, p);
+  manual_fill_rand(ram_pool[B], p, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, p);
+  manual_fill_copy(fpga_pool[B], ram_pool[B], p, n);
+  manual_fill_pattern(ram_pool[C], 666, false, m, n);
+  manual_fill_copy(fpga_pool[C], ram_pool[C], m, n);
 
   soft_mtrx_dot(m, p, n, A, B, C, false);
   fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C], false);
@@ -372,7 +372,7 @@ void fpga_dot_test(size_t m, size_t p, size_t n,
   fpgaMtrxDot(m, p, n, fpga_pool[A], fpga_pool[B], fpga_pool[C], true);
 
   //mtrx_compare_approx(mtrx_pool[C], fpga_pool[C], m, n);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 }
 
 /**
@@ -381,21 +381,21 @@ void fpga_dot_test(size_t m, size_t p, size_t n,
 void fpga_add_test(size_t m,           size_t n,
                    size_t A, size_t B, size_t C) {
 
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[B], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[B], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[B], ram_pool[B], m, n);
   soft_mtrx_add(m, n, A, B, C);
   fpgaMtrxAdd(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[B], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[B], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[B], ram_pool[B], m, n);
   soft_mtrx_sub(m, n, A, B, C);
   fpgaMtrxSub(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 }
 
 /**
@@ -406,21 +406,21 @@ void fpga_mul_test(size_t m,           size_t n,
 
   double scale = fast_rand_double();
 
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[B], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[B], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[B], ram_pool[B], m, n);
   soft_mtrx_scale(m, n, A, C, scale);
   fpgaMtrxScale(m, n, fpga_pool[A], fpga_pool[C], scale);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[B], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[B], mtrx_pool[B], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[B], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[B], ram_pool[B], m, n);
   soft_mtrx_mul(m, n, A, B, C);
   fpgaMtrxMul(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 }
 
 /**
@@ -431,59 +431,59 @@ void fpga_mov_test(size_t m,           size_t n,
 
   double set_val;
 
-  manual_fill_pattern(mtrx_pool[A], m+n, true, m, n);
-  manual_fill_pattern(mtrx_pool[1], 111, true, m, n);
-  manual_fill_pattern(mtrx_pool[C], -10, true, m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[1], mtrx_pool[1], m, n);
-  manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
+  manual_fill_pattern(ram_pool[A], m+n, true, m, n);
+  manual_fill_pattern(ram_pool[1], 111, true, m, n);
+  manual_fill_pattern(ram_pool[C], -10, true, m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[1], ram_pool[1], m, n);
+  manual_fill_copy(fpga_pool[C], ram_pool[C], m, n);
   soft_mtrx_cpy(m, n, A, C);
   fpgaMtrxCpy(m, n, fpga_pool[A], fpga_pool[C]);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[C], m, n);
-  manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[C], m, n);
+  manual_fill_copy(fpga_pool[C], ram_pool[C], m, n);
   soft_mtrx_trn(m, n, A, C);
   fpgaMtrxTrn(m, n, fpga_pool[A], fpga_pool[C]);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[C], m, n);
-  manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[C], m, n);
+  manual_fill_copy(fpga_pool[C], ram_pool[C], m, n);
   soft_mtrx_cpy(m, n, A, C);
   fpgaMtrxCpy(m, n, fpga_pool[A], fpga_pool[C]);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
   set_val = fast_rand_double();
-  manual_fill_rand(mtrx_pool[A], m, n);
-  manual_fill_copy(fpga_pool[A], mtrx_pool[A], m, n);
-  manual_fill_rand(mtrx_pool[C], m, n);
-  manual_fill_copy(fpga_pool[C], mtrx_pool[C], m, n);
+  manual_fill_rand(ram_pool[A], m, n);
+  manual_fill_copy(fpga_pool[A], ram_pool[A], m, n);
+  manual_fill_rand(ram_pool[C], m, n);
+  manual_fill_copy(fpga_pool[C], ram_pool[C], m, n);
   soft_mtrx_set(m, n, C, set_val);
   fpgaMtrxSet(m, n, fpga_pool[C], set_val);
-  mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+  mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
   // Eye works correctly only with square matrices
   if (m == n) {
     set_val = fast_rand_double();
-    manual_fill_rand(mtrx_pool[C], m, n);
-    manual_fill_copy(fpga_pool[C], mtrx_pool[A], m, n);
+    manual_fill_rand(ram_pool[C], m, n);
+    manual_fill_copy(fpga_pool[C], ram_pool[A], m, n);
     soft_mtrx_dia(m, C, set_val);
     fpgaMtrxDia(m, fpga_pool[C], set_val);
-    mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+    mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
     chTMStartMeasurementX(&dense_read_tm);
-    fpgaMtrxMemcpyDense(m, n, fpga_pool[C], mtrx_pool[A]);
+    fpgaMtrxMemcpyDense(m, n, fpga_pool[C], ram_pool[A]);
     chTMStopMeasurementX(&dense_read_tm);
-    mtrx_compare_exact(mtrx_pool[A], fpga_pool[C], m, n);
+    mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
 
     chTMStartMeasurementX(&sparse_read_tm);
-    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], mtrx_pool[A]);
+    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], ram_pool[A]);
     chTMStopMeasurementX(&sparse_read_tm);
-    mtrx_compare_exact(mtrx_pool[A], fpga_pool[C], m, n);
+    mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
   }
 }
 
@@ -735,23 +735,23 @@ void test_sparce_memcpy(size_t turns) {
     manual_fill_rand_sparse(fpga_pool[A], m, n, 3);
     fpgaMtrxSet(m, n, fpga_pool[B], 1);
 
-    manual_fill_copy(mtrx_pool[A], fpga_pool[A], m, n);
-    manual_fill_copy(mtrx_pool[B], fpga_pool[B], m, n);
+    manual_fill_copy(ram_pool[A], fpga_pool[A], m, n);
+    manual_fill_copy(ram_pool[B], fpga_pool[B], m, n);
 
     soft_mtrx_mul(m, n, A, B, C);
     fpgaMtrxMul(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
-    mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+    mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], mtrx_pool[A]);
-    mtrx_compare_exact(mtrx_pool[A], fpga_pool[C], m, n);
+    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], ram_pool[A]);
+    mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
 
     // test sparse copy from RAM to FPGA
     rand_generate_mpn(&m, &p, &n);
     rand_generate_ABC(&A, &B, &C);
 
-    manual_fill_rand_sparse(mtrx_pool[A], m, n, 3);
-    fpgaMtrxMemcpySparse(m, n, mtrx_pool[A], fpga_pool[A]);
-    mtrx_compare_exact(mtrx_pool[A], fpga_pool[A], m, n);
+    manual_fill_rand_sparse(ram_pool[A], m, n, 3);
+    fpgaMtrxMemcpySparse(m, n, ram_pool[A], fpga_pool[A]);
+    mtrx_compare_exact(ram_pool[A], fpga_pool[A], m, n);
   }
 }
 
@@ -820,8 +820,8 @@ void test_fpga_malloc(size_t turns) {
  */
 void fill_rand_all(fpgaword_t m, fpgaword_t n) {
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
-    manual_fill_rand(mtrx_pool[i], m, n);
-    manual_fill_copy(fpga_pool[i], mtrx_pool[i], m, n);
+    manual_fill_rand(ram_pool[i], m, n);
+    manual_fill_copy(fpga_pool[i], ram_pool[i], m, n);
   }
 }
 
@@ -830,7 +830,7 @@ void fill_rand_all(fpgaword_t m, fpgaword_t n) {
  */
 void compare_exact_all(fpgaword_t m, fpgaword_t n) {
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
-    mtrx_compare_exact(mtrx_pool[i], fpga_pool[i], m, n);
+    mtrx_compare_exact(ram_pool[i], fpga_pool[i], m, n);
   }
 }
 
@@ -1024,22 +1024,22 @@ void test_fpga_memory_isolation(void) {
 
   // forward fill
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
-    manual_fill_rand(mtrx_pool[i], m, n);
-    manual_fill_copy(fpga_pool[i], mtrx_pool[i], m, n);
+    manual_fill_rand(ram_pool[i], m, n);
+    manual_fill_copy(fpga_pool[i], ram_pool[i], m, n);
   }
 
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
-    mtrx_compare_exact(mtrx_pool[i], fpga_pool[i], m, n);
+    mtrx_compare_exact(ram_pool[i], fpga_pool[i], m, n);
   }
 
   // backward fill
   for (size_t i=(FPGA_MTRX_BRAMS_CNT-1); i>0; i--) {
-    manual_fill_rand(mtrx_pool[i], m, n);
-    manual_fill_copy(fpga_pool[i], mtrx_pool[i], m, n);
+    manual_fill_rand(ram_pool[i], m, n);
+    manual_fill_copy(fpga_pool[i], ram_pool[i], m, n);
   }
 
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
-    mtrx_compare_exact(mtrx_pool[i], fpga_pool[i], m, n);
+    mtrx_compare_exact(ram_pool[i], fpga_pool[i], m, n);
   }
 }
 
@@ -1077,7 +1077,7 @@ void benchmark(size_t idx, size_t m, size_t n) {
   /**/
   chTMStartMeasurementX(&ram2fpga_tm);
   for (size_t i=0; i<m*n; i++) {
-    fpga_pool[idx][i] = mtrx_pool[idx][i];
+    fpga_pool[idx][i] = ram_pool[idx][i];
   }
   chTMStopMeasurementX(&ram2fpga_tm);
   ram2fpga_eps = benchmark_tm2eps(&ram2fpga_tm, m, n);
@@ -1085,7 +1085,7 @@ void benchmark(size_t idx, size_t m, size_t n) {
   /**/
   chTMStartMeasurementX(&fpga2ram_tm);
   for (size_t i=0; i<m*n; i++) {
-    mtrx_pool[idx][i] = fpga_pool[idx][i];
+    ram_pool[idx][i] = fpga_pool[idx][i];
   }
   chTMStopMeasurementX(&fpga2ram_tm);
   fpga2ram_eps = benchmark_tm2eps(&fpga2ram_tm, m, n);
@@ -1096,7 +1096,7 @@ void benchmark(size_t idx, size_t m, size_t n) {
     for (size_t i=0; i<m*n; i++) {
       double tmp = rand_double();
       fpga_pool[idx][i] = tmp;
-      mtrx_pool[idx][i] = tmp;
+      ram_pool[idx][i] = tmp;
     }
 
     chTMStartMeasurementX(&inversion_fpga_tm);
@@ -1113,7 +1113,7 @@ void benchmark(size_t idx, size_t m, size_t n) {
     }
 
     chTMStartMeasurementX(&inversion_ram_tm);
-    inv_status = matrix::matrix_soft_inverse(m*n, mtrx_pool[idx]);
+    inv_status = matrix::matrix_soft_inverse(m*n, ram_pool[idx]);
     chTMStopMeasurementX(&inversion_ram_tm);
   }
   inversion_ram_eps = benchmark_tm2eps(&inversion_ram_tm, m, n);
