@@ -45,9 +45,21 @@ static double ram_pool[FPGA_MTRX_BRAMS_CNT]
 __CCM__ static double rand_pool[RAND_POOL_LEN];
 
 static time_measurement_t sparse_read_tm;
+static time_measurement_t sparse_write_tm;
 static time_measurement_t dense_read_tm;
+static time_measurement_t dense_write_tm;
 static time_measurement_t tm_malloc;
 static time_measurement_t tm_free;
+
+static time_measurement_t ram2fpga_tm;
+static time_measurement_t fpga2ram_tm;
+static time_measurement_t inversion_ram_tm;
+static time_measurement_t inversion_fpga_tm;
+
+static double ram2fpga_eps;
+static double fpga2ram_eps;
+static double inversion_ram_eps;
+static double inversion_fpga_eps;
 
 /*
  ******************************************************************************
@@ -732,7 +744,7 @@ void test_sparce_memcpy(size_t turns) {
     fpgaMtrxMul(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
     mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], ram_pool[A]);
+    fpgaMtrxMemcpy(m, n, fpga_pool[C], ram_pool[A]);
     mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
 
     // test sparse copy from RAM to FPGA
@@ -740,9 +752,40 @@ void test_sparce_memcpy(size_t turns) {
     rand_generate_ABC(&A, &B, &C);
 
     manual_fill_rand_sparse(ram_pool[A], m, n, 3);
-    fpgaMtrxMemcpySparse(m, n, ram_pool[A], fpga_pool[A]);
+    fpgaMtrxMemcpy(m, n, ram_pool[A], fpga_pool[A]);
     mtrx_compare_exact(ram_pool[A], fpga_pool[A], m, n);
   }
+
+  m = 32;
+  n = 32;
+  p = 32;
+  rand_generate_ABC(&A, &B, &C);
+
+  manual_fill_rand_sparse(fpga_pool[A], m, n, 7);
+  //manual_fill_rand(fpga_pool[A], m, n);
+  fpgaMtrxSet(m, n, fpga_pool[B], 1);
+  fpgaMtrxMul(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
+
+
+  osalSysLock();
+
+  chTMStartMeasurementX(&sparse_read_tm);
+  fpgaMtrxMemcpy(m, n, fpga_pool[C], ram_pool[A]);
+  chTMStopMeasurementX(&sparse_read_tm);
+
+  chTMStartMeasurementX(&sparse_write_tm);
+  fpgaMtrxMemcpy(m, n, ram_pool[A], fpga_pool[C]);
+  chTMStopMeasurementX(&sparse_write_tm);
+
+  chTMStartMeasurementX(&dense_read_tm);
+  memcpy(ram_pool[A], fpga_pool[C], m*n*sizeof(double));
+  chTMStopMeasurementX(&dense_read_tm);
+
+  chTMStartMeasurementX(&dense_write_tm);
+  memcpy(fpga_pool[C], ram_pool[A], m*n*sizeof(double));
+  chTMStopMeasurementX(&dense_write_tm);
+
+  osalSysUnlock();
 }
 
 /**
@@ -1033,16 +1076,6 @@ void test_fpga_memory_isolation(void) {
   }
 }
 
-time_measurement_t ram2fpga_tm;
-time_measurement_t fpga2ram_tm;
-time_measurement_t inversion_ram_tm;
-time_measurement_t inversion_fpga_tm;
-
-double ram2fpga_eps;
-double fpga2ram_eps;
-double inversion_ram_eps;
-double inversion_fpga_eps;
-
 /**
  * @brief   Converts time measurement value to elements per second.
  */
@@ -1151,7 +1184,9 @@ void fpga_mtrx_full_test(size_t turns) {
   FPGAMathRst(false);
 
   chTMObjectInit(&sparse_read_tm);
+  chTMObjectInit(&sparse_write_tm);
   chTMObjectInit(&dense_read_tm);
+  chTMObjectInit(&dense_write_tm);
 
   // math tests
   while(turns--) {

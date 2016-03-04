@@ -183,26 +183,16 @@ static size_t get_idx(const double *slice) {
 /**
  *
  */
-void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
-
-  fpgaMtrxSet(m, n, dst, 0);
-
-  const size_t len = m*n;
-  for(size_t i=0; i<len; i++) {
-    double tmp = src[i];
-    if (tmp != 0) {
-      dst[i] = tmp;
-    }
-  }
+static void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+  memcpy(dst, src, m*n*sizeof(double));
 }
 
 /**
  *
  */
-void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
   const size_t words = m*n / 32;
   const size_t tail  = m*n % 32;
-  size_t L = 0;
   size_t slice;
 
   memset(dst, 0, m*n*sizeof(double));
@@ -212,9 +202,10 @@ void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
     slice = MTRXD.zero_map[w];
     for (size_t bit=0; bit<32; bit++) {
       if ((slice & (1U << bit)) != 0) {
-        dst[L] = src[L];
+        memcpy(dst, src, sizeof(double));
       }
-      L++;
+      dst++;
+      src++;
     }
   }
 
@@ -222,9 +213,10 @@ void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
   slice = MTRXD.zero_map[words];
   for (size_t bit=0; bit<tail; bit++) {
     if ((slice & (1U << bit)) != 0) {
-      dst[L] = src[L];
+      memcpy(dst, src, sizeof(double));
     }
-    L++;
+    dst++;
+    src++;
   }
 }
 
@@ -446,13 +438,12 @@ void fpgaMtrxDia(size_t m, double *C, double val) {
 /**
  *
  */
-void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst) {
-  memcpy(dst, src, m*n*sizeof(double));
+void fpgaMtrxMemcpy(size_t m, size_t n, const double *src, double *dst) {
 
-//  if ((src >= MTRXD.pool[0]) && (src <= MTRXD.pool[FPGA_MTRX_BRAMS_CNT-1])) {
-//    from_fpga_cpy_sparse(m, n, src, dst);
-//  }
-//  else {
-//    to_fpga_cpy_sparse(m, n, src, dst);
-//  }
+  if ((src >= MTRXD.pool[0]) && (src <= MTRXD.pool[FPGA_MTRX_BRAMS_CNT-1])) {
+    from_fpga_cpy_sparse(m, n, src, dst);
+  }
+  else {
+    to_fpga_cpy_sparse(m, n, src, dst);
+  }
 }
