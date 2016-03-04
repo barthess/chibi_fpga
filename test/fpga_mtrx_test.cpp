@@ -744,7 +744,7 @@ void test_sparce_memcpy(size_t turns) {
     fpgaMtrxMul(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
     mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
 
-    fpgaMtrxMemcpy(m, n, fpga_pool[C], ram_pool[A]);
+    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], ram_pool[A]);
     mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
 
     // test sparse copy from RAM to FPGA
@@ -752,7 +752,7 @@ void test_sparce_memcpy(size_t turns) {
     rand_generate_ABC(&A, &B, &C);
 
     manual_fill_rand_sparse(ram_pool[A], m, n, 3);
-    fpgaMtrxMemcpy(m, n, ram_pool[A], fpga_pool[A]);
+    fpgaMtrxMemcpySparse(m, n, ram_pool[A], fpga_pool[A]);
     mtrx_compare_exact(ram_pool[A], fpga_pool[A], m, n);
   }
 
@@ -770,11 +770,11 @@ void test_sparce_memcpy(size_t turns) {
   osalSysLock();
 
   chTMStartMeasurementX(&sparse_read_tm);
-  fpgaMtrxMemcpy(m, n, fpga_pool[C], ram_pool[A]);
+  fpgaMtrxMemcpySparse(m, n, fpga_pool[C], ram_pool[A]);
   chTMStopMeasurementX(&sparse_read_tm);
 
   chTMStartMeasurementX(&sparse_write_tm);
-  fpgaMtrxMemcpy(m, n, ram_pool[A], fpga_pool[C]);
+  fpgaMtrxMemcpySparse(m, n, ram_pool[A], fpga_pool[C]);
   chTMStopMeasurementX(&sparse_write_tm);
 
   chTMStartMeasurementX(&dense_read_tm);

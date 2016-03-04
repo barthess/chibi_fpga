@@ -438,7 +438,7 @@ void fpgaMtrxDia(size_t m, double *C, double val) {
 /**
  *
  */
-void fpgaMtrxMemcpy(size_t m, size_t n, const double *src, double *dst) {
+void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst) {
 
   if ((src >= MTRXD.pool[0]) && (src <= MTRXD.pool[FPGA_MTRX_BRAMS_CNT-1])) {
     from_fpga_cpy_sparse(m, n, src, dst);
