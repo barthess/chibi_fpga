@@ -44,6 +44,11 @@ static double mtrx_pool[FPGA_MTRX_BRAMS_CNT]
 
 __CCM__ static double rand_pool[RAND_POOL_LEN];
 
+static time_measurement_t sparse_read_tm;
+static time_measurement_t dense_read_tm;
+static time_measurement_t tm_malloc;
+static time_measurement_t tm_free;
+
 /*
  ******************************************************************************
  ******************************************************************************
@@ -194,13 +199,6 @@ static void mtrx_compare_exact(const T *soft_dat, const T *fpga_dat, size_t m, s
   }
 }
 
-/**
- *
- */
-void fill_constant(const double val, fpgaword_t *ctl) {
-  memcpy(&ctl[4], &val, sizeof(val));
-}
-
 /*****************************************************************************************
  * Software variants
  *****************************************************************************************/
@@ -316,25 +314,37 @@ void soft_mtrx_dia(size_t m,
 /*******************************************************************************
  * manual fill of arrays in FPGA
  *******************************************************************************/
-void manual_fill_pattern(double *ptr, double pattern, bool increment, size_t m, size_t n) {
+void manual_fill_pattern(double *dst, double pattern, bool increment, size_t m, size_t n) {
   for (size_t i=0; i<m*n; i++) {
-    ptr[i] = pattern;
+    dst[i] = pattern;
     if (increment) {
       pattern += 1;
     }
   }
 }
 
-void manual_fill_copy(double *ptr, const double *data, size_t m, size_t n) {
+void manual_fill_copy(double *dst, const double *src, size_t m, size_t n) {
   for (size_t i=0; i<m*n; i++) {
-    ptr[i] = data[i];
+    dst[i] = src[i];
   }
 }
 
-void manual_fill_rand(double *ptr, size_t m, size_t n) {
+void manual_fill_rand(double *dst, size_t m, size_t n) {
 
   for (size_t i=0; i<m*n; i++) {
-    ptr[i] = fast_rand_double();
+    dst[i] = fast_rand_double();
+  }
+}
+
+void manual_fill_rand_sparse(double *dst, size_t m, size_t n, size_t sparseness) {
+
+  for (size_t i=0; i<m*n; i++) {
+    if (0 == (rand() & sparseness)) {
+      dst[i] = fast_rand_double();
+    }
+    else {
+      dst[i] = 0;
+    }
   }
 }
 
@@ -464,6 +474,16 @@ void fpga_mov_test(size_t m,           size_t n,
     soft_mtrx_dia(m, C, set_val);
     fpgaMtrxDia(m, fpga_pool[C], set_val);
     mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+
+    chTMStartMeasurementX(&dense_read_tm);
+    fpgaMtrxMemcpyDense(m, n, fpga_pool[C], mtrx_pool[A]);
+    chTMStopMeasurementX(&dense_read_tm);
+    mtrx_compare_exact(mtrx_pool[A], fpga_pool[C], m, n);
+
+    chTMStartMeasurementX(&sparse_read_tm);
+    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], mtrx_pool[A]);
+    chTMStopMeasurementX(&sparse_read_tm);
+    mtrx_compare_exact(mtrx_pool[A], fpga_pool[C], m, n);
   }
 }
 
@@ -704,6 +724,40 @@ void rand_generate_ABC(fpgaword_t *A, fpgaword_t *B, fpgaword_t *C) {
 /**
  *
  */
+void test_sparce_memcpy(size_t turns) {
+  fpgaword_t m, p, n, A, B, C;
+
+  while(turns--) {
+    // test sparse copy from FPGA to RAM
+    rand_generate_mpn(&m, &p, &n);
+    rand_generate_ABC(&A, &B, &C);
+
+    manual_fill_rand_sparse(fpga_pool[A], m, n, 3);
+    fpgaMtrxSet(m, n, fpga_pool[B], 1);
+
+    manual_fill_copy(mtrx_pool[A], fpga_pool[A], m, n);
+    manual_fill_copy(mtrx_pool[B], fpga_pool[B], m, n);
+
+    soft_mtrx_mul(m, n, A, B, C);
+    fpgaMtrxMul(m, n, fpga_pool[A], fpga_pool[B], fpga_pool[C]);
+    mtrx_compare_exact(mtrx_pool[C], fpga_pool[C], m, n);
+
+    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], mtrx_pool[A]);
+    mtrx_compare_exact(mtrx_pool[A], fpga_pool[C], m, n);
+
+    // test sparse copy from RAM to FPGA
+    rand_generate_mpn(&m, &p, &n);
+    rand_generate_ABC(&A, &B, &C);
+
+    manual_fill_rand_sparse(mtrx_pool[A], m, n, 3);
+    fpgaMtrxMemcpySparse(m, n, mtrx_pool[A], fpga_pool[A]);
+    mtrx_compare_exact(mtrx_pool[A], fpga_pool[A], m, n);
+  }
+}
+
+/**
+ *
+ */
 void test_fpga_rand(size_t turns) {
   fpgaword_t m, p, n, A, B, C;
 
@@ -735,8 +789,6 @@ void test_fpga_rand(size_t turns) {
 /**
  *
  */
-static time_measurement_t tm_malloc;
-static time_measurement_t tm_free;
 void test_fpga_malloc(size_t turns) {
   double *test_pool[FPGA_MTRX_BRAMS_CNT];
   chTMObjectInit(&tm_malloc);
@@ -1108,6 +1160,9 @@ void fpga_mtrx_full_test(size_t turns) {
   osalThreadSleepMilliseconds(10);
   FPGAMathRst(false);
 
+  chTMObjectInit(&sparse_read_tm);
+  chTMObjectInit(&dense_read_tm);
+
   // math tests
   while(turns--) {
     osalThreadSleep(1);
@@ -1116,6 +1171,7 @@ void fpga_mtrx_full_test(size_t turns) {
     init_rand_pool();
 
     test_fpga_rand(200);
+    test_sparce_memcpy(20);
     test_fpga_corner();
     test_fpga_memory_isolation();
     test_fpga_memory_isolation_math();

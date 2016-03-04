@@ -39,6 +39,10 @@ struct MtrxMath {
    */
   double            *constant;
   /**
+   * @brief   Scale/memset value.
+   */
+  uint32_t          *zero_map;
+  /**
    * @brief   Pool for matrix data.
    */
   double            *pool[FPGA_MTRX_BRAMS_CNT];
@@ -78,6 +82,8 @@ extern "C" {
   void fpgaMtrxTrn(size_t m, size_t n, const double *A, double *C);
   void fpgaMtrxSet(size_t m, size_t n, double *C, double val);
   void fpgaMtrxDia(size_t m, double *C, double val);
+  void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst);
+  void fpgaMtrxMemcpyDense(size_t m, size_t n, const double *src, double *dst);
 #ifdef __cplusplus
 }
 #endif

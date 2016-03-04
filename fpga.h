@@ -40,6 +40,7 @@ typedef uint16_t        fpgaword_t;         /* fpga talks with stm32 using 16-bi
 #define FPGA_CTL_OP_OFFSET        0
 #define FPGA_CTL_SIZES_OFFSET     1
 #define FPGA_CTL_CONSTANT_OFFSET  4
+#define FPGA_CTL_ZERO_MAP_OFFSET  8
 
 /**
  * @brief   Driver state machine possible states.

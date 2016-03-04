@@ -178,6 +178,57 @@ static size_t get_idx(const double *slice) {
   return -1;
 }
 
+/**
+ *
+ */
+static void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+  fpgaMtrxSet(m, n, dst, 0);
+
+  const size_t len = m*n;
+  for(size_t i=0; i<len; i++) {
+    double tmp = src[i];
+    if (tmp != 0) {
+      dst[i] = tmp;
+    }
+  }
+}
+
+/**
+ *
+ */
+static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+  const size_t words = m*n / 32;
+  const size_t tail  = m*n % 32;
+  size_t L = 0;
+  size_t slice;
+
+  // copy main block
+  for (size_t w=0; w<words; w++) {
+    slice = MTRXD.zero_map[w];
+    for (size_t bit=0; bit<32; bit++) {
+      if ((slice & (1U << bit)) != 0) {
+        dst[L] = src[L];
+      }
+      else {
+        dst[L] = 0;
+      }
+      L++;
+    }
+  }
+
+  // copy tail (if any)
+  slice = MTRXD.zero_map[words];
+  for (size_t bit=0; bit<tail; bit++) {
+    if ((slice & (1U << bit)) != 0) {
+      dst[L] = src[L];
+    }
+    else {
+      dst[L] = 0;
+    }
+    L++;
+  }
+}
+
 /*
  *******************************************************************************
  * EXPORTED FUNCTIONS
@@ -193,6 +244,7 @@ void fpgaMtrxObjectInit(MtrxMath *mtrxp) {
   mtrxp->op = NULL;
   mtrxp->sizes = NULL;
   mtrxp->constant = NULL;
+  mtrxp->zero_map = NULL;
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
     mtrxp->pool[i] = NULL;
   }
@@ -222,6 +274,7 @@ void fpgaMtrxStart(MtrxMath *mtrxp, const FPGADriver *fpgap) {
   mtrxp->op = &ctl[FPGA_CTL_OP_OFFSET];
   mtrxp->sizes = &ctl[FPGA_CTL_SIZES_OFFSET];
   mtrxp->constant = (double *)&ctl[FPGA_CTL_CONSTANT_OFFSET];
+  mtrxp->zero_map = (uint32_t *)&ctl[FPGA_CTL_ZERO_MAP_OFFSET];
 
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
     mtrxp->empty |= 1U << i;
@@ -391,5 +444,31 @@ void fpgaMtrxDia(size_t m, double *C, double val) {
   wait_polling();
 }
 
+/**
+ *
+ */
+void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst) {
 
+  osalDbgCheck(MTRX_READY == MTRXD.state);
+
+  if ((src >= MTRXD.pool[0]) && (src <= MTRXD.pool[FPGA_MTRX_BRAMS_CNT-1])) {
+    from_fpga_cpy_sparse(m, n, src, dst);
+  }
+  else {
+    to_fpga_cpy_sparse(m, n, src, dst);
+  }
+}
+
+/**
+ *
+ */
+void fpgaMtrxMemcpyDense(size_t m, size_t n, const double *src, double *dst) {
+
+  osalDbgCheck(MTRX_READY == MTRXD.state);
+
+  const size_t len = m*n;
+  for(size_t i=0; i<len; i++) {
+    dst[i] = src[i];
+  }
+}
 
