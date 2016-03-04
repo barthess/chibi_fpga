@@ -474,16 +474,6 @@ void fpga_mov_test(size_t m,           size_t n,
     soft_mtrx_dia(m, C, set_val);
     fpgaMtrxDia(m, fpga_pool[C], set_val);
     mtrx_compare_exact(ram_pool[C], fpga_pool[C], m, n);
-
-    chTMStartMeasurementX(&dense_read_tm);
-    fpgaMtrxMemcpyDense(m, n, fpga_pool[C], ram_pool[A]);
-    chTMStopMeasurementX(&dense_read_tm);
-    mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
-
-    chTMStartMeasurementX(&sparse_read_tm);
-    fpgaMtrxMemcpySparse(m, n, fpga_pool[C], ram_pool[A]);
-    chTMStopMeasurementX(&sparse_read_tm);
-    mtrx_compare_exact(ram_pool[A], fpga_pool[C], m, n);
   }
 }
 

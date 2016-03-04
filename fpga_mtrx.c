@@ -1,3 +1,5 @@
+#include "string.h"
+
 #include "main.h"
 #include "pads.h"
 
@@ -181,7 +183,8 @@ static size_t get_idx(const double *slice) {
 /**
  *
  */
-static void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+
   fpgaMtrxSet(m, n, dst, 0);
 
   const size_t len = m*n;
@@ -196,11 +199,13 @@ static void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *ds
 /**
  *
  */
-static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
   const size_t words = m*n / 32;
   const size_t tail  = m*n % 32;
   size_t L = 0;
   size_t slice;
+
+  memset(dst, 0, m*n*sizeof(double));
 
   // copy main block
   for (size_t w=0; w<words; w++) {
@@ -208,9 +213,6 @@ static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *
     for (size_t bit=0; bit<32; bit++) {
       if ((slice & (1U << bit)) != 0) {
         dst[L] = src[L];
-      }
-      else {
-        dst[L] = 0;
       }
       L++;
     }
@@ -221,9 +223,6 @@ static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *
   for (size_t bit=0; bit<tail; bit++) {
     if ((slice & (1U << bit)) != 0) {
       dst[L] = src[L];
-    }
-    else {
-      dst[L] = 0;
     }
     L++;
   }
@@ -448,27 +447,12 @@ void fpgaMtrxDia(size_t m, double *C, double val) {
  *
  */
 void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst) {
+  memcpy(dst, src, m*n*sizeof(double));
 
-  osalDbgCheck(MTRX_READY == MTRXD.state);
-
-  if ((src >= MTRXD.pool[0]) && (src <= MTRXD.pool[FPGA_MTRX_BRAMS_CNT-1])) {
-    from_fpga_cpy_sparse(m, n, src, dst);
-  }
-  else {
-    to_fpga_cpy_sparse(m, n, src, dst);
-  }
+//  if ((src >= MTRXD.pool[0]) && (src <= MTRXD.pool[FPGA_MTRX_BRAMS_CNT-1])) {
+//    from_fpga_cpy_sparse(m, n, src, dst);
+//  }
+//  else {
+//    to_fpga_cpy_sparse(m, n, src, dst);
+//  }
 }
-
-/**
- *
- */
-void fpgaMtrxMemcpyDense(size_t m, size_t n, const double *src, double *dst) {
-
-  osalDbgCheck(MTRX_READY == MTRXD.state);
-
-  const size_t len = m*n;
-  for(size_t i=0; i<len; i++) {
-    dst[i] = src[i];
-  }
-}
-

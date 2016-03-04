@@ -1,4 +1,4 @@
-// WARNING! Automatically generated from ../xilinx/fsmc2wb/rtl/mtrx_math_constants.vhd
+// WARNING! Automatically generated from ../../xilinx/fsmc2wb/rtl/mtrx_math_constants.vhd
 // Do not modify it manually!
 #define MATH_OP_MUL    0
 #define MATH_OP_SCALE  1

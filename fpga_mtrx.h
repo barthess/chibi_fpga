@@ -83,7 +83,6 @@ extern "C" {
   void fpgaMtrxSet(size_t m, size_t n, double *C, double val);
   void fpgaMtrxDia(size_t m, double *C, double val);
   void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst);
-  void fpgaMtrxMemcpyDense(size_t m, size_t n, const double *src, double *dst);
 #ifdef __cplusplus
 }
 #endif
