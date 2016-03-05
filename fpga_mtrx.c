@@ -180,46 +180,6 @@ static size_t get_idx(const double *slice) {
   return -1;
 }
 
-/**
- *
- */
-static void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
-  memcpy(dst, src, m*n*sizeof(double));
-}
-
-/**
- *
- */
-static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
-  const size_t words = m*n / 32;
-  const size_t tail  = m*n % 32;
-  size_t slice;
-
-  memset(dst, 0, m*n*sizeof(double));
-
-  // copy main block
-  for (size_t w=0; w<words; w++) {
-    slice = MTRXD.zero_map[w];
-    for (size_t bit=0; bit<32; bit++) {
-      if ((slice & (1U << bit)) != 0) {
-        memcpy(dst, src, sizeof(double));
-      }
-      dst++;
-      src++;
-    }
-  }
-
-  // copy tail (if any)
-  slice = MTRXD.zero_map[words];
-  for (size_t bit=0; bit<tail; bit++) {
-    if ((slice & (1U << bit)) != 0) {
-      memcpy(dst, src, sizeof(double));
-    }
-    dst++;
-    src++;
-  }
-}
-
 /*
  *******************************************************************************
  * EXPORTED FUNCTIONS
@@ -235,7 +195,6 @@ void fpgaMtrxObjectInit(MtrxMath *mtrxp) {
   mtrxp->op = NULL;
   mtrxp->sizes = NULL;
   mtrxp->constant = NULL;
-  mtrxp->zero_map = NULL;
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
     mtrxp->pool[i] = NULL;
   }
@@ -265,7 +224,6 @@ void fpgaMtrxStart(MtrxMath *mtrxp, const FPGADriver *fpgap) {
   mtrxp->op = &ctl[FPGA_CTL_OP_OFFSET];
   mtrxp->sizes = &ctl[FPGA_CTL_SIZES_OFFSET];
   mtrxp->constant = (double *)&ctl[FPGA_CTL_CONSTANT_OFFSET];
-  mtrxp->zero_map = (uint32_t *)&ctl[FPGA_CTL_ZERO_MAP_OFFSET];
 
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
     mtrxp->empty |= 1U << i;
@@ -435,6 +393,49 @@ void fpgaMtrxDia(size_t m, double *C, double val) {
   wait_polling();
 }
 
+
+
+#if 0
+/**
+ *
+ */
+static void to_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+  memcpy(dst, src, m*n*sizeof(double));
+}
+
+/**
+ *
+ */
+static void from_fpga_cpy_sparse(size_t m, size_t n, const double *src, double *dst) {
+  const size_t words = m*n / 32;
+  const size_t tail  = m*n % 32;
+  size_t slice;
+
+  memset(dst, 0, m*n*sizeof(double));
+
+  // copy main block
+  for (size_t w=0; w<words; w++) {
+    slice = MTRXD.zero_map[w];
+    for (size_t bit=0; bit<32; bit++) {
+      if ((slice & (1U << bit)) != 0) {
+        memcpy(dst, src, sizeof(double));
+      }
+      dst++;
+      src++;
+    }
+  }
+
+  // copy tail (if any)
+  slice = MTRXD.zero_map[words];
+  for (size_t bit=0; bit<tail; bit++) {
+    if ((slice & (1U << bit)) != 0) {
+      memcpy(dst, src, sizeof(double));
+    }
+    dst++;
+    src++;
+  }
+}
+
 /**
  *
  */
@@ -447,3 +448,4 @@ void fpgaMtrxMemcpySparse(size_t m, size_t n, const double *src, double *dst) {
     to_fpga_cpy_sparse(m, n, src, dst);
   }
 }
+#endif

@@ -723,6 +723,7 @@ void rand_generate_ABC(fpgaword_t *A, fpgaword_t *B, fpgaword_t *C) {
   } while ((*A == *B) or (*B == *C) or (*C == *A));
 }
 
+#if 0
 /**
  *
  */
@@ -787,6 +788,7 @@ void test_sparce_memcpy(size_t turns) {
 
   osalSysUnlock();
 }
+#endif
 
 /**
  *
@@ -1196,7 +1198,6 @@ void fpga_mtrx_full_test(size_t turns) {
     init_rand_pool();
 
     test_fpga_rand(200);
-    test_sparce_memcpy(20);
     test_fpga_corner();
     test_fpga_memory_isolation();
     test_fpga_memory_isolation_math();
