@@ -995,6 +995,21 @@ void multispep_dot(fpgaword_t m, fpgaword_t p, fpgaword_t n, size_t steps, bool 
 /**
  *
  */
+void power_consumption_test(size_t steps) {
+  fpgaword_t A, B, C;
+
+  rand_generate_ABC(&A, &B, &C);
+  manual_fill_rand(fpga_pool[A], 32, 32);
+  manual_fill_rand(fpga_pool[B], 32, 32);
+
+  while(steps--) {
+    fpgaMtrxDot(32, 32, 32, fpga_pool[A], fpga_pool[B], fpga_pool[C], false);
+  }
+}
+
+/**
+ *
+ */
 void _test_fpga_memory_isolation_math(fpgaword_t m, fpgaword_t p, fpgaword_t n) {
 
   fill_rand_all(m, n);
@@ -1196,6 +1211,8 @@ void fpga_mtrx_full_test(size_t turns) {
 
     srand(chSysGetRealtimeCounterX());
     init_rand_pool();
+
+    power_consumption_test(10000);
 
     test_fpga_rand(200);
     test_fpga_corner();
