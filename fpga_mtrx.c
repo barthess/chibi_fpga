@@ -221,9 +221,9 @@ void fpgaMtrxStart(MtrxMath *mtrxp, const FPGADriver *fpgap) {
   }
 
   fpgaword_t *ctl = fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_MUL_CTL);
-  mtrxp->op = &ctl[FPGA_CTL_OP_OFFSET];
-  mtrxp->sizes = &ctl[FPGA_CTL_SIZES_OFFSET];
-  mtrxp->constant = (double *)&ctl[FPGA_CTL_CONSTANT_OFFSET];
+  mtrxp->op = &ctl[FPGA_MTRX_CTL_OP_OFFSET];
+  mtrxp->sizes = &ctl[FPGA_MTRX_CTL_SIZES_OFFSET];
+  mtrxp->constant = (double *)&ctl[FPGA_MTRX_CTL_CONSTANT_OFFSET];
 
   for (size_t i=0; i<FPGA_MTRX_BRAMS_CNT; i++) {
     mtrxp->empty |= 1U << i;

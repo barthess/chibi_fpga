@@ -5,17 +5,14 @@
 
 #include "fpga_constants.h"
 
-typedef uint16_t        fpgaword_t;         /* fpga talks with stm32 using 16-bit words */
+/* bus width between fpga and stm32 */
+typedef uint16_t        fpgaword_t;
 
-#define FPGA_WB_SLICE_SIZE        65536     /* address space size single wishbone slice in fpga_words */
-#define FPGA_WB_SLICE_CNT         16        /* total number of slices */
+/* address space size in single wishbone slice in fpga_words */
+#define FPGA_WB_SLICE_SIZE        65536
 
-/* current FPGA firmware limitations */
-#define FPGA_MTRX_INDEX_WIDTH     5 /* number of bits used for matrix indexing*/
-#define FPGA_MTRX_MAX_INDEX       ((1 << FPGA_MTRX_INDEX_WIDTH) - 1)
-
-#define FPGA_MTRX_BRAMS_CNT_BITS  3 /* number of bits for addressing BRAM slice*/
-#define FPGA_MTRX_BRAMS_CNT       (1 << FPGA_MTRX_BRAMS_CNT_BITS)
+/* total number of wishbone slices */
+#define FPGA_WB_SLICE_CNT         16
 
 /* IDs of command slices for differ peripherals */
 #define FPGA_WB_SLICE_MEMTEST     0
@@ -32,14 +29,22 @@ typedef uint16_t        fpgaword_t;         /* fpga talks with stm32 using 16-bi
 #define FPGA_WB_SLICE_MUL_CTL     10
 
 #define FPGA_WB_SLICE_PWM_ICU     11
-#define FPGA_WB_SLICE_RESERVED1   12
+#define FPGA_WB_SLICE_UART        12
 #define FPGA_WB_SLICE_RESERVED2   13
 #define FPGA_WB_SLICE_RESERVED3   14
 #define FPGA_WB_SLICE_RESERVED4   15
 
-#define FPGA_CTL_OP_OFFSET        0
-#define FPGA_CTL_SIZES_OFFSET     1
-#define FPGA_CTL_CONSTANT_OFFSET  4
+/* Matrix engine constants */
+#define FPGA_MTRX_INDEX_WIDTH     5 /* number of bits used for matrix indexing */
+#define FPGA_MTRX_MAX_INDEX       ((1 << FPGA_MTRX_INDEX_WIDTH) - 1)
+
+#define FPGA_MTRX_BRAMS_CNT_BITS  3 /* number of bits for addressing BRAM slice */
+#define FPGA_MTRX_BRAMS_CNT       (1 << FPGA_MTRX_BRAMS_CNT_BITS)
+
+/* offsets in matrix control slice */
+#define FPGA_MTRX_CTL_OP_OFFSET        0
+#define FPGA_MTRX_CTL_SIZES_OFFSET     1
+#define FPGA_MTRX_CTL_CONSTANT_OFFSET  4
 
 /**
  * @brief   Driver state machine possible states.
