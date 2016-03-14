@@ -48,9 +48,10 @@ typedef enum {
  */
 typedef enum {
   FPGAUART_HW_FLOW_NONE = 0,
-  FPGAUART_HW_FLOW_CTS = 1,
-  FPGAUART_HW_FLOW_RTS = 2,
-  FPGAUART_HW_FLOW_BOTH = 3
+  FPGAUART_HW_FLOW_BOTH = 1
+//  FPGAUART_HW_FLOW_CTS = 2,
+//  FPGAUART_HW_FLOW_RTS = 3,
+
 } fpgauarthwflow_t;
 
 /**
@@ -77,6 +78,7 @@ typedef struct {
 typedef struct {
   FPGAUART_TypeDef UART[FPGA_UART_NUMBER];
   volatile fpgaword_t ISR; // interrupt status register
+  volatile fpgaword_t reserved[15];
   volatile fpgaword_t RCR; // reset control register
 } FPGAUARTBRIDGE_TypeDef;
 
@@ -130,8 +132,8 @@ extern "C" {
 
   void fpgaUartStart(FPGAUARTDriver *uartp, const FPGAUARTConfig *cfgp);
   void fpgaUartStop(FPGAUARTDriver *uartp);
-  size_t fpgaUartStartWrite(FPGAUARTDriver *uartp, size_t n, const uint8_t *txbuf);
-  size_t fpgaUartStartRead(FPGAUARTDriver *uartp, size_t n, uint8_t *rxbuf);
+  size_t fpgaUartWrite(FPGAUARTDriver *uartp, size_t n, const uint8_t *txbuf);
+  size_t fpgaUartRead(FPGAUARTDriver *uartp, size_t n, uint8_t *rxbuf);
 #ifdef __cplusplus
 }
 #endif

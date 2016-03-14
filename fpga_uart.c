@@ -111,7 +111,7 @@ void fpgaUartBridgeStart(FPGAUARTBridge_t *bridgep) {
   osalDbgAssert((bridgep->state == FPGAUART_BRIDGE_STOP) || (bridgep->state == FPGAUART_BRIDGE_READY),
                 "invalid state");
 
-  bridgep->bridge->RCR = ~0;
+  bridgep->bridge->RCR = 0xFF & (~0);
 
   bridgep->state = FPGAUART_BRIDGE_READY;
 }
@@ -152,17 +152,9 @@ void fpgaUartStart(FPGAUARTDriver *uartp, const FPGAUARTConfig *config) {
   release_reset(uartp);
 
   /* switch hardware flow control */
-  if (FPGAUART_HW_FLOW_NONE != config->flow_control) {
-
-    fpgaword_t tmp
-    u->CTL[CTL_MCR]
-    asdfsadfasdf
+  if (FPGAUART_HW_FLOW_BOTH == config->flow_control) {
+    u->CTL[CTL_MCR] = MCR_RTS | MCR_AFE;
   }
-
-
-
-
-
 
   /* switch banks for tuning */
   u->CTL[CTL_LCR] |= LCR_DLAB;
@@ -247,7 +239,7 @@ size_t fpgaUartGetRxAvail(FPGAUARTDriver *uartp) {
  * @brief   Push data to TX fifo
  * @retval  Number of bytes actually placed to fifo
  */
-size_t fpgaUartStartWrite(FPGAUARTDriver *uartp, size_t n, const uint8_t *txbuf) {
+size_t fpgaUartWrite(FPGAUARTDriver *uartp, size_t n, const uint8_t *txbuf) {
 
   osalDbgAssert((uartp->state == FPGAUART_STOP) || (uartp->state == FPGAUART_READY),
                 "invalid state");
@@ -267,7 +259,7 @@ size_t fpgaUartStartWrite(FPGAUARTDriver *uartp, size_t n, const uint8_t *txbuf)
 /**
  * @brief   Receive data from RX fifo.
  */
-size_t fpgaUartStartReceive(FPGAUARTDriver *uartp, size_t n, uint8_t *rxbuf) {
+size_t fpgaUartRead(FPGAUARTDriver *uartp, size_t n, uint8_t *rxbuf) {
 
   osalDbgAssert((uartp->state == FPGAUART_STOP) || (uartp->state == FPGAUART_READY),
                 "invalid state");
