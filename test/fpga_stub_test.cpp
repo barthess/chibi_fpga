@@ -48,7 +48,7 @@
 void fpga_stub_test(FPGADriver *fpgap, size_t turns) {
   osalDbgCheck(fpgap->state == FPGA_READY);
 
-  volatile fpgaword_t *ptr = fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_RESERVED1);
+  volatile fpgaword_t *ptr = fpgaGetSlicePtr(fpgap, FPGA_WB_SLICE_RESERVED4);
   volatile fpgaword_t pattern;
 
   while (turns--) {
