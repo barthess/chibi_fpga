@@ -1,7 +1,7 @@
 #ifndef FPGA_H_
 #define FPGA_H_
 
-#include "fsmc_sram.h"
+#include "hal_fsmc_sram.h"
 
 #include "fpga_constants.h"
 
