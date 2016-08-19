@@ -5,8 +5,8 @@
 #include "main.h"
 #include "pads.h"
 
-#include "fpga_mtrx_test.hpp"
-#include "fpga_mem_test.hpp"
+#include "fpga_mtrx_test.h"
+#include "fpga_mem_test.h"
 
 #include "matrix_soft_engine.hpp"
 
@@ -16,7 +16,7 @@
  ******************************************************************************
  */
 
-#define RAND_POOL_LEN        (65536 / sizeof(double))
+#define RAND_POOL_LEN        (32768 / sizeof(double))
 #define RAND_POOL_ADR_MASK   (RAND_POOL_LEN - 1)
 
 /*
@@ -1171,7 +1171,7 @@ void benchmark(size_t idx, size_t m, size_t n) {
 /**
  *
  */
-void fpga_mtrx_mem_test(size_t turns) {
+void fpgamtrxMemTest(size_t turns) {
   osalDbgCheck(MTRXD.state == MTRX_READY);
 
   for (size_t i=0; i<8; i++) {
@@ -1186,9 +1186,9 @@ void fpga_mtrx_mem_test(size_t turns) {
 /**
  *
  */
-void fpga_mtrx_full_test(size_t turns) {
+void fpgamtrxFullTest(size_t turns) {
 
-  fpga_mtrx_mem_test(2);
+  fpgamtrxMemTest(6);
 
   // init BRAM pool
   for (size_t i=0; i<8; i++) {
@@ -1214,7 +1214,7 @@ void fpga_mtrx_full_test(size_t turns) {
 
     power_consumption_test(10000);
 
-    test_fpga_rand(200);
+    test_fpga_rand(2000);
     test_fpga_corner();
     test_fpga_memory_isolation();
     test_fpga_memory_isolation_math();

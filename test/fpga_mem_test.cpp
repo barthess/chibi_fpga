@@ -4,7 +4,7 @@
 #include "pads.h"
 
 #include "memtest.h"
-#include "fpga_mem_test.hpp"
+#include "fpga_mem_test.h"
 
 using namespace chibios_rt;
 
